@@ -66,6 +66,60 @@ test("GET /api/travel returns the documented structured response", async () => {
   });
 });
 
+test("GET /api/travel forwards a deterministic destination selection", async () => {
+  const client = successfulClient();
+  let receivedSelection;
+  client.geocode = async (_city, selection) => {
+    receivedSelection = selection;
+    return destination;
+  };
+
+  await withServer(client, async (baseUrl) => {
+    const response = await fetch(
+      `${baseUrl}/api/travel?city=Springfield&latitude=53.35&longitude=-6.26`,
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(receivedSelection, {
+      latitude: 53.35,
+      longitude: -6.26,
+    });
+  });
+});
+
+test("GET /api/travel rejects invalid destination coordinates", async (context) => {
+  for (const [name, query] of [
+    ["empty latitude and longitude", "latitude=&longitude="],
+    ["latitude without longitude", "latitude=53.35"],
+    ["longitude without latitude", "longitude=-6.26"],
+    ["non-numeric coordinates", "latitude=north&longitude=west"],
+    ["out-of-range latitude", "latitude=90.01&longitude=-6.26"],
+    ["out-of-range longitude", "latitude=53.35&longitude=-180.01"],
+  ]) {
+    await context.test(name, async () => {
+      const client = successfulClient();
+      let geocodeCalled = false;
+      client.geocode = async () => {
+        geocodeCalled = true;
+        return destination;
+      };
+
+      await withServer(client, async (baseUrl) => {
+        const response = await fetch(
+          `${baseUrl}/api/travel?city=Springfield&${query}`,
+        );
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), {
+          error: {
+            code: "INVALID_DESTINATION_SELECTION",
+            message: "The selected destination coordinates are invalid.",
+          },
+        });
+        assert.equal(geocodeCalled, false);
+      });
+    });
+  }
+});
+
 test("GET /api/travel returns consistent errors for invalid and upstream requests", async (context) => {
   for (const [name, error, expectedStatus, expectedCode] of [
     ["missing city", new AppError("INVALID_CITY", "A non-empty city is required.", 400), 400, "INVALID_CITY"],
