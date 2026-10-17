@@ -15,6 +15,7 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 atmos/
 ├── public/
 ├── server/
+│   ├── routes/activities.js
 │   ├── routes/travel.js
 │   ├── routes/itinerary.js
 │   ├── services/
@@ -48,7 +49,11 @@ Set `OPENWEATHER_API_KEY` in `.env`. The key is read only by the backend and mus
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, and moustache interpolation directly in `public/index.html`. Requests use native `fetch`; an `AbortController` and request identifier prevent an older response replacing a newer search.
+The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+
+To use the planner, search for and resolve a destination, select at least one activity, choose a maximum of 1–3 activities per day, and select **Generate my itinerary**. The client explains capacity mismatches before submission. Changing a selection marks the displayed plan as out of date until it is regenerated. Starting a destination search clears the previous itinerary and aborts any pending itinerary request, while retaining activity preferences for convenient replanning.
+
+Both travel and itinerary requests use native `fetch`. Independent `AbortController` instances and request identifiers prevent stale destination or itinerary responses from replacing current state. For ambiguous searches, the exact candidate coordinates selected in the dashboard are retained and included in the itinerary request.
 
 ## Travel API
 
@@ -166,6 +171,8 @@ Errors never include the API key or a stack trace:
 ```
 
 ## Itinerary API
+
+`GET /api/activities` returns the six supported activities with only their public display fields: `id`, `name`, `description`, and `environment`. The dashboard uses this endpoint instead of duplicating the server catalogue or exposing its internal scoring coefficients.
 
 `POST /api/itinerary` creates a three-day, weather-aware itinerary from a destination, one or more supported activity identifiers, and a daily capacity of 1, 2 or 3. It reuses the travel API's geocoding and coordinate-selection workflow, but makes only one forecast request and does not request air-quality data.
 
@@ -287,6 +294,8 @@ The scheduler evaluates every assignment of the selected activities to the three
 
 Requests fail with predictable JSON errors for a missing body or city, empty/non-string selections, duplicate or unknown identifiers, invalid coordinates, capacities outside 1–3, and more activities than the available `3 × activitiesPerDay` slots. Ambiguous cities return the same `300` candidate response as the travel API. Missing days, malformed upstream data, authentication failures, rate limits, timeouts, and network failures retain the existing safe weather-service errors. No activity is silently discarded and no weather is fabricated.
 
+The browser adds only presentational score labels (Excellent, Good, Moderate, and Limited); the numeric scores, placement, capacity enforcement, and explanations all come from the server. An empty day is shown as returned and is never filled with a fabricated activity.
+
 ## Processing decisions
 
 The three-day period means the current destination-local calendar day plus the following two calendar days. Dates are calculated with the UTC offset in the forecast response, not the server timezone. Each day uses all valid three-hour intervals in that local date: temperature minima/maxima are extrema, wind is averaged and converted from m/s to km/h, and `rain["3h"]` is summed in millimetres. A missing rain field means zero; a malformed interval is excluded and disclosed. A day with fewer than the expected eight intervals is marked `partialCoverage`. If any of the three dates has no usable interval, the request fails rather than presenting a misleading summary.
@@ -307,4 +316,4 @@ Tests use deterministic mocked responses and never require a live API key:
 npm test
 ```
 
-They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, pollutant thresholds and time windows, the complete travel response, activity scoring, optimal assignment and tie-breaking, itinerary validation, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
+They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, pollutant thresholds and time windows, the complete travel response, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, response-shape checks, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
