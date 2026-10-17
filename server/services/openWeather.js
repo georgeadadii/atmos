@@ -123,7 +123,7 @@ export function createOpenWeatherClient({
   }
 
   return {
-    async geocode(city, selectedCoordinates) {
+    async geocode(city) {
       const query = validateCityQuery(city);
       const data = await get("/geo/1.0/direct", { q: query, limit: 5 });
       if (!Array.isArray(data)) {
@@ -163,24 +163,6 @@ export function createOpenWeatherClient({
           "No matching destination was found.",
           404,
         );
-      }
-      if (selectedCoordinates !== undefined) {
-        const { latitude, longitude } = selectedCoordinates;
-        validateCoordinate(latitude, -90, 90, "selected latitude");
-        validateCoordinate(longitude, -180, 180, "selected longitude");
-        const selected = candidates.find(
-          (candidate) =>
-            Math.abs(candidate.latitude - latitude) < 0.000001 &&
-            Math.abs(candidate.longitude - longitude) < 0.000001,
-        );
-        if (!selected) {
-          throw new AppError(
-            "DESTINATION_SELECTION_EXPIRED",
-            "The selected destination is no longer available. Search again.",
-            409,
-          );
-        }
-        return selected;
       }
       if (candidates.length > 1) {
         throw new AppError(
