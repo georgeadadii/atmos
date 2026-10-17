@@ -3,26 +3,166 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta
-      name="description"
-      content="Atmos is a weather-aware travel planning application."
-    >
-    <title>Atmos</title>
+    <meta name="description" content="Plan a three-day trip with destination weather, packing advice, and air-quality guidance from Atmos.">
+    <meta name="theme-color" content="#0b3558">
+    <title>Atmos — Weather-aware travel planning</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <main id="app" v-cloak>
-      <section class="welcome-card" aria-labelledby="page-title">
-        <p class="eyebrow">Travel with the forecast</p>
-        <h1 id="page-title">Atmos</h1>
-        <p class="tagline">Your weather-aware travel companion.</p>
-        <p class="message" aria-live="polite">{{ message }}</p>
-        <button type="button" @click="updateMessage">
-          Check the atmosphere
-        </button>
-      </section>
-    </main>
+      <header class="site-header">
+        <a class="brand" href="#" aria-label="Atmos home">
+          <span class="brand-mark" aria-hidden="true"><span class="brand-sun"></span><span class="brand-cloud"></span></span>
+          <span>Atmos</span>
+        </a>
+        <p class="header-note">Weather-aware travel planning</p>
+      </header>
 
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Forecast your best trip</p>
+          <h1 id="page-title">Go prepared.<br><em>Whatever the weather.</em></h1>
+          <p class="hero-intro">A focused three-day outlook with packing guidance and air-quality insights for your next destination.</p>
+        </div>
+
+        <form class="search-card" @submit.prevent="search" novalidate>
+          <label for="city-search">Where are you heading?</label>
+          <p id="search-hint" class="search-hint">Add a country code for a more precise result.</p>
+          <div class="search-row">
+            <span class="search-icon" aria-hidden="true">⌖</span>
+            <input id="city-search" v-model="cityQuery" name="city" type="search" placeholder="Try Dublin,IE or Barcelona,ES" autocomplete="off" aria-describedby="search-hint" :aria-invalid="Boolean(error)" :disabled="loading">
+            <button class="search-button" type="submit" :disabled="loading">
+              <span v-if="loading" class="button-loading"><span class="spinner" aria-hidden="true"></span>Searching</span>
+              <span v-else>Explore forecast <span aria-hidden="true">→</span></span>
+            </button>
+          </div>
+          <div class="quick-searches" aria-label="Popular destinations">
+            <span>Popular:</span>
+            <button v-for="city in popularCities" :key="city" type="button" class="text-button" :disabled="loading" @click="searchFor(city)">{{ city.split(',')[0] }}</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="status-region" aria-live="polite" aria-atomic="true">
+        <p v-if="loading" class="sr-only">Loading the destination forecast.</p>
+        <div v-if="error" class="notice notice-error" role="alert">
+          <span class="notice-icon" aria-hidden="true">!</span>
+          <div><strong>We couldn’t load that forecast</strong><p>{{ error }}</p></div>
+        </div>
+      </div>
+
+      <section v-if="candidates.length" class="candidate-panel" aria-labelledby="candidate-title">
+        <div><p class="section-kicker">Multiple matches</p><h2 id="candidate-title">Which destination did you mean?</h2><p>Choose a location to get the right local forecast.</p></div>
+        <div class="candidate-grid">
+          <button v-for="candidate in candidates" :key="`${candidate.latitude}-${candidate.longitude}`" type="button" class="candidate-button" :disabled="loading" @click="selectCandidate(candidate)">
+            <span class="candidate-pin" aria-hidden="true">⌖</span>
+            <span><strong>{{ candidate.name }}</strong><small>{{ candidateLocation(candidate) }}</small></span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </section>
+
+      <template v-if="result">
+        <section class="destination-overview" aria-labelledby="destination-title">
+          <div>
+            <p class="section-kicker">Your three-day outlook</p>
+            <h2 id="destination-title">{{ result.destination.name }}<span>, {{ result.destination.country }}</span></h2>
+            <p v-if="result.destination.state" class="destination-state">{{ result.destination.state }}</p>
+          </div>
+          <div class="overview-meta">
+            <div><span>Travel window</span><strong>{{ forecastPeriod }}</strong></div>
+            <div><span>Overall outlook</span><strong>{{ weatherOverview }}</strong></div>
+          </div>
+        </section>
+
+        <section class="panel forecast-panel" aria-labelledby="forecast-title">
+          <div class="section-heading">
+            <div><p class="section-kicker">Plan day by day</p><h2 id="forecast-title">Three-day forecast</h2></div>
+            <p>Destination-local dates</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Three-day weather forecast for {{ result.destination.name }}</caption>
+              <thead><tr><th scope="col">Day</th><th scope="col">Conditions</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Wind</th><th scope="col">Rain</th></tr></thead>
+              <tbody>
+                <tr v-for="day in result.forecast.days" :key="day.date">
+                  <th scope="row" data-label="Day">
+                    <span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span>
+                    <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
+                  </th>
+                  <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
+                  <td data-label="Low"><strong>{{ formatNumber(day.minimumTemperatureCelsius) }}°</strong></td>
+                  <td data-label="High"><strong>{{ formatNumber(day.maximumTemperatureCelsius) }}°</strong></td>
+                  <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
+                  <td data-label="Rain">{{ formatNumber(day.totalRainfallMm) }} <small>mm</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel packing-panel" aria-labelledby="packing-title">
+            <div class="section-heading">
+              <div><p class="section-kicker">Pack with confidence</p><h2 id="packing-title">Packing guide</h2></div><span class="panel-icon" aria-hidden="true">◒</span>
+            </div>
+            <div class="recommendation-feature" :class="{ recommended: result.packing.umbrella.recommended }">
+              <span class="recommendation-icon" aria-hidden="true">{{ result.packing.umbrella.recommended ? '☂' : '✓' }}</span>
+              <div><span>Umbrella</span><strong>{{ result.packing.umbrella.recommended ? 'Bring one along' : 'Not needed' }}</strong><p>{{ result.packing.umbrella.reason }}</p></div>
+            </div>
+            <div class="temperature-summary">
+              <span>Expected temperatures</span>
+              <div class="category-row">
+                <span v-for="category in result.packing.temperature.categories" :key="category" class="category-pill" :class="`category-${category.toLowerCase()}`">{{ category }}</span>
+                <small v-if="result.packing.temperature.mixedConditions">Mixed conditions</small>
+              </div>
+            </div>
+            <ul class="advice-list">
+              <li v-for="item in result.packing.temperature.advice" :key="item.category"><span aria-hidden="true">✓</span><p><strong>{{ item.category }}:</strong> {{ item.message }}</p></li>
+            </ul>
+          </section>
+
+          <section class="panel air-panel" aria-labelledby="air-title">
+            <div class="section-heading">
+              <div><p class="section-kicker">Breathe easy</p><h2 id="air-title">Air quality</h2></div><span class="panel-icon air-lines" aria-hidden="true">≋</span>
+            </div>
+            <div class="aqi-summary">
+              <div class="aqi-orb" :class="severityClass(result.airQuality.current.aqiClassification)"><strong>{{ result.airQuality.current.aqi }}</strong><span>AQI</span></div>
+              <div><span>Current conditions</span><strong>{{ result.airQuality.current.aqiClassification }}</strong><p>Observed {{ formatLocalDateTime(result.airQuality.current.observedAt) }}</p></div>
+            </div>
+            <div class="warning-heading"><h3>Forecast pollutant watch</h3><span>{{ result.airQuality.forecast.warnings.length }} elevated</span></div>
+            <div v-if="result.airQuality.forecast.warnings.length" class="warning-list">
+              <article v-for="warning in result.airQuality.forecast.warnings" :key="warning.pollutant" class="pollutant-warning">
+                <div class="warning-topline"><strong>{{ warning.name }}</strong><span :class="severityClass(warning.classification)">{{ warning.classification }}</span></div>
+                <p class="concentration">{{ formatNumber(warning.concentration) }} <small>{{ warning.unit }}</small><span>Good below {{ formatNumber(warning.goodThreshold) }} {{ warning.unit }}</span></p>
+                <p><strong>Expected peak:</strong> {{ formatLocalDateTime(warning.expectedAt) }}</p>
+                <p class="risk-copy">{{ warning.risk }}</p>
+              </article>
+            </div>
+            <div v-else class="no-warnings"><span aria-hidden="true">✓</span><p><strong>No elevated pollutants in the available forecast.</strong> No classified pollutant exceeded its Good-category threshold; this does not guarantee risk-free air.</p></div>
+            <details class="pollutant-details">
+              <summary>View all forecast pollutant maxima</summary>
+              <ul><li v-for="pollutant in result.airQuality.forecast.maxima" :key="pollutant.pollutant"><span>{{ pollutant.name }}</span><strong>{{ formatNumber(pollutant.concentration) }} {{ pollutant.unit }}</strong><small :class="severityClass(pollutant.classification)">{{ pollutant.classification }}</small></li></ul>
+            </details>
+          </section>
+        </div>
+
+        <details v-if="result.limitations.length" class="limitations">
+          <summary><span aria-hidden="true">i</span>Data notes and limitations ({{ result.limitations.length }})</summary>
+          <ul><li v-for="limitation in result.limitations" :key="limitation">{{ limitation }}</li></ul>
+        </details>
+      </template>
+
+      <section v-else-if="!loading && !candidates.length" class="empty-state" aria-label="Getting started">
+        <div class="empty-visual" aria-hidden="true"><span class="empty-sun"></span><span class="empty-cloud">☁</span><span class="empty-pin">⌖</span></div>
+        <p>Search a destination to reveal its three-day travel outlook.</p>
+      </section>
+
+      <footer>
+        <a class="brand footer-brand" href="#" aria-label="Atmos home"><span class="brand-mark small" aria-hidden="true"><span class="brand-sun"></span><span class="brand-cloud"></span></span><span>Atmos</span></a>
+        <p>Forecasts support planning, but conditions can change. Check local guidance before you travel.</p>
+      </footer>
+    </main>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
