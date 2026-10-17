@@ -1,7 +1,8 @@
 import { Router } from "express";
 
-import { AppError, errorResponse } from "../errors.js";
+import { errorResponse } from "../errors.js";
 import { processAirQuality } from "../services/airQuality.js";
+import { selectedCoordinatesFrom } from "../services/destinationSelection.js";
 import { createPackingRecommendations } from "../services/packingRecommendations.js";
 import { processForecast } from "../services/weatherProcessing.js";
 
@@ -10,45 +11,7 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
 
   router.get("/", async (request, response) => {
     try {
-      const latitudeValue = request.query.latitude;
-      const longitudeValue = request.query.longitude;
-      const hasLatitude = latitudeValue !== undefined;
-      const hasLongitude = longitudeValue !== undefined;
-      let selectedCoordinates;
-      if (hasLatitude || hasLongitude) {
-        if (
-          !hasLatitude ||
-          !hasLongitude ||
-          typeof latitudeValue !== "string" ||
-          latitudeValue.trim() === "" ||
-          typeof longitudeValue !== "string" ||
-          longitudeValue.trim() === ""
-        ) {
-          throw new AppError(
-            "INVALID_DESTINATION_SELECTION",
-            "The selected destination coordinates are invalid.",
-            400,
-          );
-        }
-
-        const latitude = Number(latitudeValue);
-        const longitude = Number(longitudeValue);
-        if (
-          !Number.isFinite(latitude) ||
-          latitude < -90 ||
-          latitude > 90 ||
-          !Number.isFinite(longitude) ||
-          longitude < -180 ||
-          longitude > 180
-        ) {
-          throw new AppError(
-            "INVALID_DESTINATION_SELECTION",
-            "The selected destination coordinates are invalid.",
-            400,
-          );
-        }
-        selectedCoordinates = { latitude, longitude };
-      }
+      const selectedCoordinates = selectedCoordinatesFrom(request.query);
 
       const destination = await openWeatherClient.geocode(
         request.query.city,

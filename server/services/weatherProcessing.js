@@ -120,7 +120,10 @@ export function processForecast(payload, { now = Date.now() } = {}) {
     };
   });
 
-  const intervals = dates.flatMap((date) => grouped.get(date));
+  const intervalsByDate = Object.fromEntries(
+    dates.map((date) => [date, [...grouped.get(date)]]),
+  );
+  const intervals = dates.flatMap((date) => intervalsByDate[date]);
   const warnings = [];
   if (days.some((day) => day.partialCoverage)) {
     warnings.push(
@@ -133,5 +136,12 @@ export function processForecast(payload, { now = Date.now() } = {}) {
     );
   }
 
-  return { days, intervals, dates, timezoneOffsetSeconds, warnings };
+  return {
+    days,
+    intervals,
+    intervalsByDate,
+    dates,
+    timezoneOffsetSeconds,
+    warnings,
+  };
 }
