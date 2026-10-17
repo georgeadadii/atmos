@@ -2,6 +2,7 @@ import express from "express";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { createActivitiesRouter } from "./routes/activities.js";
 import { createItineraryRouter } from "./routes/itinerary.js";
 import { createTravelRouter } from "./routes/travel.js";
 import { createOpenWeatherClient } from "./services/openWeather.js";
@@ -23,6 +24,8 @@ export function createApp({
       service: "atmos",
     });
   });
+
+  app.use("/api/activities", createActivitiesRouter());
 
   app.use(
     "/api/travel",

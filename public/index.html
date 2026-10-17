@@ -62,7 +62,7 @@
         </div>
       </section>
 
-      <template v-if="result">
+      <div v-if="result" class="results">
         <section class="destination-overview" aria-labelledby="destination-title">
           <div>
             <p class="section-kicker">Your three-day outlook</p>
@@ -147,11 +147,145 @@
           </section>
         </div>
 
+        <section class="panel itinerary-planner" aria-labelledby="planner-title">
+          <div class="planner-intro">
+            <div>
+              <p class="section-kicker">Weather-aware itinerary</p>
+              <h2 id="planner-title">Plan your three-day adventure</h2>
+              <p>Choose what you’d like to do, and Atmos will find the most suitable days based on the forecast.</p>
+            </div>
+            <span class="planner-destination"><span aria-hidden="true">⌖</span> {{ result.destination.name }}, {{ result.destination.country }}</span>
+          </div>
+
+          <form class="planner-form" @submit.prevent="generateItinerary" novalidate>
+            <fieldset class="activity-fieldset" :disabled="activitiesLoading || itineraryLoading">
+              <legend>Choose your activities</legend>
+              <p class="field-help">Select one or more experiences. You can change these later and regenerate.</p>
+
+              <div v-if="activitiesLoading" class="planner-loading compact" role="status">
+                <span class="spinner dark" aria-hidden="true"></span>
+                <span>Loading activity choices…</span>
+              </div>
+              <div v-else-if="activitiesError" class="planner-notice planner-error" role="alert">
+                <strong>Activities unavailable</strong>
+                <p>{{ activitiesError }}</p>
+              </div>
+              <div v-else class="activity-grid">
+                <label v-for="activity in activities" :key="activity.id" class="activity-card" :class="{ selected: selectedActivities.includes(activity.id) }">
+                  <input v-model="selectedActivities" type="checkbox" :value="activity.id">
+                  <span class="activity-check" aria-hidden="true">✓</span>
+                  <span class="activity-icon" aria-hidden="true">{{ activityIcon(activity) }}</span>
+                  <span class="activity-copy">
+                    <strong>{{ activity.name }}</strong>
+                    <small>{{ activity.description }}</small>
+                  </span>
+                  <span class="activity-environment">{{ titleCase(activity.environment) }}</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="planner-controls">
+              <div class="capacity-control">
+                <label for="daily-capacity">Maximum activities per day</label>
+                <p id="capacity-help">Choose how many activities you would like to fit into each day. This is a maximum, not a guarantee.</p>
+                <select id="daily-capacity" v-model.number="activitiesPerDay" aria-describedby="capacity-help" :disabled="itineraryLoading">
+                  <option :value="1">1 activity</option>
+                  <option :value="2">2 activities</option>
+                  <option :value="3">3 activities</option>
+                </select>
+              </div>
+              <div class="selection-summary" aria-live="polite">
+                <span><strong>{{ selectedActivityCount }}</strong> selected</span>
+                <span><strong>{{ availableItinerarySlots }}</strong> total slots</span>
+              </div>
+            </div>
+
+            <div class="planner-actions">
+              <div class="validation-copy" aria-live="polite">
+                <p v-if="itineraryValidationMessage" :class="{ 'capacity-warning': selectedActivityCount > availableItinerarySlots }">{{ itineraryValidationMessage }}</p>
+                <p v-else>Atmos will arrange every selected activity once across the three days.</p>
+              </div>
+              <button class="generate-button" type="submit" :disabled="!canGenerateItinerary">
+                <span v-if="itineraryLoading"><span class="spinner" aria-hidden="true"></span> Finding the best days…</span>
+                <span v-else-if="itinerary">Regenerate itinerary <span aria-hidden="true">↻</span></span>
+                <span v-else>Generate my itinerary <span aria-hidden="true">→</span></span>
+              </button>
+            </div>
+          </form>
+
+          <div class="planner-status" aria-live="polite" aria-atomic="true">
+            <div v-if="itineraryError" class="planner-notice planner-error" role="alert">
+              <strong>We couldn’t build that itinerary</strong>
+              <p>{{ itineraryError }}</p>
+            </div>
+            <div v-if="itineraryOutdated" class="planner-notice planner-outdated" role="status">
+              <strong>Your preferences have changed.</strong>
+              <p>Regenerate your itinerary to see the updated plan.</p>
+            </div>
+          </div>
+
+          <div v-if="itineraryLoading" class="planner-loading" role="status">
+            <span class="spinner dark" aria-hidden="true"></span>
+            <div><strong>Finding the best days for your activities…</strong><p>Atmos is comparing each activity with the three-day forecast.</p></div>
+          </div>
+          <div v-else-if="itinerary" class="itinerary-results" :class="{ outdated: itineraryOutdated }">
+            <div class="itinerary-summary">
+              <div>
+                <p class="section-kicker">Your three-day itinerary</p>
+                <h3>{{ itineraryDestinationName }}</h3>
+                <p>Atmos has arranged your activities around the forecast to find suitable days for each experience.</p>
+              </div>
+              <dl>
+                <div><dt>Activities</dt><dd>{{ scheduledActivityCount }}</dd></div>
+                <div><dt>Daily maximum</dt><dd>{{ itinerary.preferences.activitiesPerDay }}</dd></div>
+                <div><dt>Overall suitability</dt><dd>{{ itinerary.itinerary.overallScore }}/100</dd></div>
+              </dl>
+            </div>
+
+            <div class="itinerary-days">
+              <article v-for="(day, dayIndex) in itinerary.itinerary.days" :key="day.date" class="itinerary-day">
+                <header>
+                  <span>Day {{ dayIndex + 1 }}</span>
+                  <h4>{{ formatDay(day.date) }}</h4>
+                  <p>{{ formatCompactDate(day.date) }}</p>
+                </header>
+                <div class="day-weather">
+                  <span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.forecast.representativeCondition.name) }}</span>
+                  <div><strong>{{ titleCase(day.forecast.representativeCondition.description) }}</strong><small>{{ formatNumber(day.forecast.minimumTemperatureCelsius) }}–{{ formatNumber(day.forecast.maximumTemperatureCelsius) }}°C · {{ formatNumber(day.forecast.totalRainfallMm) }} mm rain</small></div>
+                </div>
+                <div v-if="day.activities.length" class="scheduled-list">
+                  <article v-for="activity in day.activities" :key="activity.id" class="scheduled-activity">
+                    <div class="activity-score-row">
+                      <h5>{{ activity.name }}</h5>
+                      <span class="score-badge" :class="suitabilityClass(activity.suitabilityScore)"><strong>{{ activity.suitabilityScore }}/100</strong> {{ suitabilityLabel(activity.suitabilityScore) }}</span>
+                    </div>
+                    <div class="score-track" aria-hidden="true"><span :class="suitabilityClass(activity.suitabilityScore)" :style="{ width: `${activity.suitabilityScore}%` }"></span></div>
+                    <p>{{ activity.reason }}</p>
+                  </article>
+                </div>
+                <div v-else class="empty-day">
+                  <span aria-hidden="true">○</span>
+                  <p><strong>No activities scheduled for this day.</strong> Your selected activities were better suited to the other forecast days.</p>
+                </div>
+              </article>
+            </div>
+
+            <details v-if="itinerary.limitations.length" class="itinerary-limitations">
+              <summary>How to interpret this plan</summary>
+              <ul><li v-for="limitation in itinerary.limitations" :key="limitation">{{ limitation }}</li></ul>
+            </details>
+          </div>
+          <div v-else class="planner-empty">
+            <span aria-hidden="true">↗</span>
+            <p><strong>Your itinerary will appear here.</strong> Select activities and generate a plan to see the recommended day for each one.</p>
+          </div>
+        </section>
+
         <details v-if="result.limitations.length" class="limitations">
           <summary><span aria-hidden="true">i</span>Data notes and limitations ({{ result.limitations.length }})</summary>
           <ul><li v-for="limitation in result.limitations" :key="limitation">{{ limitation }}</li></ul>
         </details>
-      </template>
+      </div>
 
       <section v-else-if="!loading && !candidates.length" class="empty-state" aria-label="Getting started">
         <div class="empty-visual" aria-hidden="true"><span class="empty-sun"></span><span class="empty-cloud">☁</span><span class="empty-pin">⌖</span></div>
