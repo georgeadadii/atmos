@@ -1,6 +1,6 @@
 # Atmos
 
-Atmos is a weather-aware travel planning application for CSU44000 Internet Applications at Trinity College Dublin. It provides a responsive Vue 3 dashboard, an Express backend, a health endpoint, and a server-side travel weather API. There is no frontend build process or scaffolding system.
+Atmos is a weather-aware travel planning application for CSU44000 Internet Applications at Trinity College Dublin. It currently provides a Vue 3 CDN frontend, an Express backend, a health endpoint, and a server-side travel weather API. There is no frontend build process or scaffolding system.
 
 ## Technologies
 
@@ -43,8 +43,6 @@ Set `OPENWEATHER_API_KEY` in `.env`. The key is read only by the backend and mus
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, and moustache interpolation directly in `public/index.html`. Requests use native `fetch`; an `AbortController` and request identifier prevent an older response replacing a newer search.
-
 ## Travel API
 
 `GET /api/travel?city=<city>` resolves a destination and returns its three-day weather summary, packing recommendations, and air-quality analysis. URL-encode the query when needed:
@@ -53,7 +51,7 @@ The dashboard lets a user search by city or city/country combination, then prese
 GET /api/travel?city=Dublin%2CIE
 ```
 
-The city may include a country code or state, such as `Dublin,IE` or `Springfield,Illinois,US`. Geocoding never silently selects the first of several results. An ambiguous query returns HTTP `300` with `error.details.candidates`; the dashboard presents those candidates as keyboard-accessible choices. Selecting one resubmits the city with the candidate's `latitude` and `longitude`, which the backend matches against fresh geocoding results for deterministic resolution. No result returns `404`, invalid input returns `400`, and upstream/configuration failures return a consistent error object with an appropriate `5xx` status.
+The city may include a country code or state, such as `Dublin,IE` or `Springfield,Illinois,US`. Geocoding never silently selects the first of several results. An ambiguous query returns HTTP `300` with `error.details.candidates`; the client can resubmit a more specific query. No result returns `404`, invalid input returns `400`, and upstream/configuration failures return a consistent error object with an appropriate `5xx` status.
 
 An abbreviated success response is:
 
@@ -167,8 +165,6 @@ The three-day period means the current destination-local calendar day plus the f
 The representative condition is the most frequent condition among the day's intervals, with the earliest occurrence breaking a tie. Umbrella advice checks every selected interval and is enabled for any rainfall. Temperatures are classified across every interval using the assignment boundaries: Cold below 8°C, Mild from 8°C through 24°C inclusive, and Hot above 24°C. More than one observed class produces mixed-condition advice.
 
 Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Forecast analysis uses only timestamps within the same three local dates and reports the maximum expected concentration and time for each classified pollutant. OpenWeather's half-open component bands are centralized in `server/services/airQuality.js`: SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO are Good only below 20, 40, 20, 10, 60, and 4400 µg/m³ respectively; a value exactly at a boundary enters the next category. NO and NH₃ are returned as measurements, but no warning category is invented because OpenWeather does not include them in its component AQI bands. General risk text is informational, not medical advice.
-
-The dashboard intentionally does not add packing or health conclusions beyond the API response. Its forecast and pollution coverage are limited by OpenWeather's available readings; any detected gaps are shown in the data-notes disclosure.
 
 The air-pollution forecast is hourly and OpenWeather normally supplies four days. Because a request made partway through today cannot cover past hours, `coverage.complete` may be false; maxima then describe only available readings and the limitation is explicit. Times are rendered in destination-local time using the forecast's fixed UTC offset. This API does not attempt daylight-saving transitions that occur within the three-day window because the 5-day forecast provides an offset rather than an IANA timezone.
 

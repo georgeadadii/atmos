@@ -66,28 +66,6 @@ test("geocoding rejects unknown and ambiguous destinations", async (context) => 
   });
 });
 
-test("geocoding resolves an ambiguous destination by selected coordinates", async () => {
-  const client = createOpenWeatherClient({
-    apiKey: "key",
-    fetchImpl: async () =>
-      jsonResponse([
-        { name: "Springfield", state: "Illinois", country: "US", lat: 1, lon: 2 },
-        { name: "Springfield", state: "Oregon", country: "US", lat: 3, lon: 4 },
-      ]),
-  });
-
-  assert.deepEqual(
-    await client.geocode("Springfield", { latitude: 3, longitude: 4 }),
-    {
-      name: "Springfield",
-      state: "Oregon",
-      country: "US",
-      latitude: 3,
-      longitude: 4,
-    },
-  );
-});
-
 test("geocoding rejects invalid input and malformed upstream data", async (context) => {
   const client = createOpenWeatherClient({
     apiKey: "key",
