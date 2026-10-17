@@ -10,15 +10,30 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
 
   router.get("/", async (request, response) => {
     try {
-      const hasLatitude = request.query.latitude !== undefined;
-      const hasLongitude = request.query.longitude !== undefined;
+      const latitudeValue = request.query.latitude;
+      const longitudeValue = request.query.longitude;
+      const hasLatitude = latitudeValue !== undefined;
+      const hasLongitude = longitudeValue !== undefined;
       let selectedCoordinates;
       if (hasLatitude || hasLongitude) {
-        const latitude = Number(request.query.latitude);
-        const longitude = Number(request.query.longitude);
         if (
           !hasLatitude ||
           !hasLongitude ||
+          typeof latitudeValue !== "string" ||
+          latitudeValue.trim() === "" ||
+          typeof longitudeValue !== "string" ||
+          longitudeValue.trim() === ""
+        ) {
+          throw new AppError(
+            "INVALID_DESTINATION_SELECTION",
+            "The selected destination coordinates are invalid.",
+            400,
+          );
+        }
+
+        const latitude = Number(latitudeValue);
+        const longitude = Number(longitudeValue);
+        if (
           !Number.isFinite(latitude) ||
           latitude < -90 ||
           latitude > 90 ||
