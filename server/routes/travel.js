@@ -1,7 +1,8 @@
 import { Router } from "express";
 
-import { AppError, errorResponse } from "../errors.js";
+import { errorResponse } from "../errors.js";
 import { processAirQuality } from "../services/airQuality.js";
+import { selectedCoordinatesFrom } from "../services/destinationSelection.js";
 import { createPackingRecommendations } from "../services/packingRecommendations.js";
 import { processForecast } from "../services/weatherProcessing.js";
 
@@ -10,30 +11,7 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
 
   router.get("/", async (request, response) => {
     try {
-      const hasLatitude = request.query.latitude !== undefined;
-      const hasLongitude = request.query.longitude !== undefined;
-      let selectedCoordinates;
-      if (hasLatitude || hasLongitude) {
-        const latitude = Number(request.query.latitude);
-        const longitude = Number(request.query.longitude);
-        if (
-          !hasLatitude ||
-          !hasLongitude ||
-          !Number.isFinite(latitude) ||
-          latitude < -90 ||
-          latitude > 90 ||
-          !Number.isFinite(longitude) ||
-          longitude < -180 ||
-          longitude > 180
-        ) {
-          throw new AppError(
-            "INVALID_DESTINATION_SELECTION",
-            "The selected destination coordinates are invalid.",
-            400,
-          );
-        }
-        selectedCoordinates = { latitude, longitude };
-      }
+      const selectedCoordinates = selectedCoordinatesFrom(request.query);
 
       const destination = await openWeatherClient.geocode(
         request.query.city,
