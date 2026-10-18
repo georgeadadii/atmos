@@ -77,7 +77,7 @@ test("scores clamp to zero and partial coverage is not treated as favourable", (
 });
 
 test("the catalogue has unique identifiers and complete weather preferences", () => {
-  assert.equal(ACTIVITY_CATALOGUE.length, 6);
+  assert.equal(ACTIVITY_CATALOGUE.length, 12);
   assert.equal(
     new Set(ACTIVITY_CATALOGUE.map((activity) => activity.id)).size,
     ACTIVITY_CATALOGUE.length,

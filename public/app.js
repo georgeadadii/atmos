@@ -1,5 +1,9 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { isItineraryResponse, selectionValidation } from "./itineraryHelpers.js";
+import {
+  isItineraryResponse,
+  MAX_SELECTED_ACTIVITIES,
+  selectionValidation,
+} from "./itineraryHelpers.js";
 
 let activeTravelController = null;
 let latestTravelRequestId = 0;
@@ -14,6 +18,7 @@ const FRIENDLY_ERRORS = {
   INVALID_ACTIVITIES: "Select at least one supported activity.",
   UNKNOWN_ACTIVITIES: "One of those activities is no longer supported. Refresh the page and try again.",
   DUPLICATE_ACTIVITIES: "Each activity can be selected only once.",
+  ACTIVITY_SELECTION_LIMIT_EXCEEDED: "Select no more than six activities for one itinerary.",
   INVALID_DAILY_CAPACITY: "Choose a maximum of 1, 2 or 3 activities per day.",
   ITINERARY_CAPACITY_EXCEEDED: "The selected activities will not fit within the current daily limit.",
   WEATHER_API_NOT_CONFIGURED: "Weather data is not configured right now. Please try again later.",
@@ -48,6 +53,7 @@ createApp({
       itineraryLoading: false,
       itineraryError: "",
       itineraryOutdated: false,
+      maximumSelectedActivities: MAX_SELECTED_ACTIVITIES,
     };
   },
   computed: {
@@ -198,7 +204,8 @@ createApp({
         const payload = await this.readJson(response);
         if (
           !response.ok || !Array.isArray(payload?.activities) ||
-          payload.activities.length !== 6 ||
+          payload.activities.length < 10 ||
+          payload.maximumSelectedActivities !== MAX_SELECTED_ACTIVITIES ||
           payload.activities.some((activity) =>
             !activity?.id || !activity?.name || !activity?.description)
         ) {
@@ -300,6 +307,9 @@ createApp({
       const icons = {
         sightseeing: "⌖", beach: "☀", hiking: "△", museums: "▥",
         shopping: "◇", "outdoor-dining": "◒",
+        "historical-sites": "⌛", "parks-gardens": "♧",
+        "art-galleries": "▣", cafes: "☕",
+        "cultural-attractions": "◎", "indoor-entertainment": "◈",
       };
       return icons[activity.id] ?? "○";
     },

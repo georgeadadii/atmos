@@ -11,9 +11,12 @@ import {
 } from "../services/activityScoring.js";
 import { selectedCoordinatesFrom } from "../services/destinationSelection.js";
 import { optimiseItinerary } from "../services/itineraryPlanner.js";
+import { rankPlaces } from "../services/placeRanking.js";
 import { processForecast } from "../services/weatherProcessing.js";
 
 const FORECAST_DAY_COUNT = 3;
+export const MAX_SELECTED_ACTIVITIES = 6;
+const MAX_PLACE_SEARCH_CONCURRENCY = 2;
 
 export function validateItineraryRequest(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -54,6 +57,17 @@ export function validateItineraryRequest(body) {
       { duplicateActivities: [...new Set(duplicateActivities)] },
     );
   }
+  if (body.activities.length > MAX_SELECTED_ACTIVITIES) {
+    throw new AppError(
+      "ACTIVITY_SELECTION_LIMIT_EXCEEDED",
+      `Select no more than ${MAX_SELECTED_ACTIVITIES} activities for one itinerary.`,
+      400,
+      {
+        selectedActivityCount: body.activities.length,
+        maximumSelectedActivities: MAX_SELECTED_ACTIVITIES,
+      },
+    );
+  }
   const unknownActivities = body.activities.filter(
     (identifier) => !getActivity(identifier),
   );
@@ -91,7 +105,67 @@ export function validateItineraryRequest(body) {
   };
 }
 
-export function createItineraryRouter({ openWeatherClient, now = Date.now }) {
+async function searchPlacesBounded(activities, destination, googlePlacesClient) {
+  const results = new Map();
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < activities.length) {
+      const activity = activities[nextIndex];
+      nextIndex += 1;
+      try {
+        results.set(activity.id, await googlePlacesClient.search(activity, destination));
+      } catch {
+        results.set(activity.id, {
+          places: [],
+          code: "PLACES_UNAVAILABLE",
+          message: "Real-place suggestions are temporarily unavailable.",
+        });
+      }
+    }
+  }
+  await Promise.all(
+    Array.from(
+      { length: Math.min(MAX_PLACE_SEARCH_CONCURRENCY, activities.length) },
+      worker,
+    ),
+  );
+  return results;
+}
+
+export async function enrichActivitiesWithPlaces(
+  activities,
+  destination,
+  googlePlacesClient,
+) {
+  const searchResults = await searchPlacesBounded(
+    activities,
+    destination,
+    googlePlacesClient,
+  );
+  const usedPlaceIds = new Set();
+  return new Map(
+    activities.map((activity) => {
+      const result = searchResults.get(activity.id) ?? { places: [] };
+      const ranked = rankPlaces(result.places, activity, destination);
+      const places = ranked
+        .filter((place) => !usedPlaceIds.has(place.id))
+        .slice(0, 3);
+      places.forEach((place) => usedPlaceIds.add(place.id));
+      const message = places.length
+        ? result.message
+        : result.code === "PLACES_AVAILABLE"
+          ? "No sufficiently relevant real-place suggestions were found in the search area."
+          : result.message ?? "No suitable real-place suggestions were found in the search area.";
+      return [activity.id, { places, placeAvailability: { code: result.code, message } }];
+    }),
+  );
+}
+
+export function createItineraryRouter({
+  openWeatherClient,
+  googlePlacesClient,
+  now = Date.now,
+}) {
   const router = Router();
 
   router.post("/", async (request, response) => {
@@ -120,6 +194,11 @@ export function createItineraryRouter({ openWeatherClient, now = Date.now }) {
         scoreMatrix,
         preferences.activitiesPerDay,
       );
+      const placeRecommendations = await enrichActivitiesWithPlaces(
+        activities,
+        destination,
+        googlePlacesClient,
+      );
 
       const days = weather.days.map((forecastDay, dayIndex) => ({
         date: forecastDay.date,
@@ -141,6 +220,13 @@ export function createItineraryRouter({ openWeatherClient, now = Date.now }) {
                 isBestDay: result.score === bestScore,
                 activitiesPerDay: preferences.activitiesPerDay,
               }),
+              ...(placeRecommendations.get(activity.id) ?? {
+                places: [],
+                placeAvailability: {
+                  code: "PLACES_UNAVAILABLE",
+                  message: "Real-place suggestions are temporarily unavailable.",
+                },
+              }),
             };
           }),
       }));
@@ -161,6 +247,8 @@ export function createItineraryRouter({ openWeatherClient, now = Date.now }) {
           ...weather.warnings,
           "Suitability scores are application-defined weather heuristics, not safety guarantees.",
           "Activities are assigned to whole days; the itinerary does not choose an hour or a venue.",
+          "Atmos Place Scores are application-specific ranking heuristics, not measures of quality, safety or accessibility.",
+          "Place distances are approximate straight-line distances from the destination centre, not routes or journey times.",
         ],
       });
     } catch (error) {

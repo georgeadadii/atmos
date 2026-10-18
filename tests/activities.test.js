@@ -21,7 +21,8 @@ test("GET /api/activities returns the public activity catalogue", async (context
     body.activities.map(({ id }) => id),
     ACTIVITY_CATALOGUE.map(({ id }) => id),
   );
-  assert.equal(body.activities.length, 6);
+  assert.equal(body.activities.length, 12);
+  assert.equal(body.maximumSelectedActivities, 6);
   assert.deepEqual(Object.keys(body.activities[0]), [
     "id",
     "name",
@@ -29,4 +30,26 @@ test("GET /api/activities returns the public activity catalogue", async (context
     "environment",
   ]);
   assert.equal("preferences" in body.activities[0], false);
+  assert.equal("places" in body.activities[0], false);
+});
+
+test("the expanded catalogue preserves existing activities and valid unique definitions", () => {
+  const identifiers = ACTIVITY_CATALOGUE.map(({ id }) => id);
+  for (const existing of [
+    "sightseeing",
+    "beach",
+    "hiking",
+    "museums",
+    "shopping",
+    "outdoor-dining",
+  ]) {
+    assert.ok(identifiers.includes(existing));
+  }
+  assert.equal(new Set(identifiers).size, identifiers.length);
+  for (const activity of ACTIVITY_CATALOGUE) {
+    assert.ok(["indoor", "outdoor"].includes(activity.environment));
+    assert.ok(activity.preferences.minimumTemperature < activity.preferences.maximumTemperature);
+    assert.ok(["nearby", "text"].includes(activity.places.method));
+    assert.ok(activity.places.strongTypes.length > 0);
+  }
 });

@@ -4,7 +4,11 @@ import test from "node:test";
 
 import { AppError } from "../server/errors.js";
 import { createApp } from "../server/index.js";
-import { validateItineraryRequest } from "../server/routes/itinerary.js";
+import {
+  enrichActivitiesWithPlaces,
+  validateItineraryRequest,
+} from "../server/routes/itinerary.js";
+import { getActivity } from "../server/services/activityCatalogue.js";
 import { NOW, weatherInterval } from "./helpers.js";
 
 const destination = {
@@ -57,8 +61,8 @@ function successfulClient() {
   };
 }
 
-async function withServer(client, callback) {
-  const server = createApp({ openWeatherClient: client, now: () => NOW }).listen(
+async function withServer(client, callback, googlePlacesClient = { async search() { return { places: [], code: "PLACES_NOT_CONFIGURED", message: "Not configured." }; } }) {
+  const server = createApp({ openWeatherClient: client, googlePlacesClient, now: () => NOW }).listen(
     0,
     "127.0.0.1",
   );
@@ -122,6 +126,18 @@ test("request validation rejects incomplete and non-numeric coordinate selection
   }
 });
 
+test("request validation accepts six activities and rejects seven", () => {
+  const six = ["beach", "museums", "hiking", "shopping", "cafes", "art-galleries"];
+  assert.equal(validateItineraryRequest(validBody({ activities: six, activitiesPerDay: 2 })).activityIds.length, 6);
+  assert.throws(
+    () => validateItineraryRequest(validBody({
+      activities: [...six, "historical-sites"],
+      activitiesPerDay: 3,
+    })),
+    { code: "ACTIVITY_SELECTION_LIMIT_EXCEEDED" },
+  );
+});
+
 test("POST /api/itinerary returns the optimal structured three-day itinerary", async () => {
   await withServer(successfulClient(), async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/itinerary`, {
@@ -144,8 +160,80 @@ test("POST /api/itinerary returns the optimal structured three-day itinerary", a
     assert.ok(body.itinerary.overallScore >= 0);
     assert.ok(body.itinerary.overallScore <= 100);
     assert.match(body.itinerary.days[2].activities[0].reason, /25–25°C/);
+    assert.deepEqual(body.itinerary.days[2].activities[0].places, []);
+    assert.equal(body.itinerary.days[2].activities[0].placeAvailability.code, "PLACES_NOT_CONFIGURED");
     assert.ok(Array.isArray(body.limitations));
   });
+});
+
+test("POST /api/itinerary enriches activities after weather scheduling and survives Places failures", async () => {
+  const candidate = {
+    id: "museum-1",
+    displayName: { text: "National Museum" },
+    formattedAddress: "Museum Street, Dublin",
+    location: { latitude: 53.351, longitude: -6.26 },
+    googleMapsUri: "https://maps.google.com/?cid=1",
+    types: ["museum"],
+    rating: 4.7,
+    userRatingCount: 1200,
+  };
+  const placesClient = {
+    async search(activity) {
+      if (activity.id === "museums") {
+        return { places: [candidate], code: "PLACES_AVAILABLE", message: "Place data provided by Google Maps." };
+      }
+      throw new Error("outage");
+    },
+  };
+  await withServer(successfulClient(), async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/itinerary`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(validBody()),
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    const scheduled = body.itinerary.days.flatMap((day) => day.activities);
+    const museum = scheduled.find((activity) => activity.id === "museums");
+    assert.ok(museum.suitabilityScore >= 0 && museum.suitabilityScore <= 100);
+    assert.equal(museum.places.length, 1);
+    assert.equal(museum.places[0].name, "National Museum");
+    assert.notEqual(museum.places[0].placeScore, museum.suitabilityScore);
+    assert.ok(museum.places[0].placeScore <= 100);
+    assert.equal(scheduled.find((activity) => activity.id === "beach").places.length, 0);
+  }, placesClient);
+});
+
+test("place enrichment returns at most three and avoids duplicate place IDs", async () => {
+  const shared = {
+    id: "shared",
+    displayName: { text: "Shared cultural venue" },
+    location: destination,
+    types: ["museum", "art_gallery"],
+    rating: 5,
+    userRatingCount: 1000,
+  };
+  const galleryAlternative = {
+    ...shared,
+    id: "gallery-only",
+    displayName: { text: "Gallery alternative" },
+    types: ["art_gallery"],
+    rating: 4,
+  };
+  const activities = [getActivity("museums"), getActivity("art-galleries")];
+  const placesClient = {
+    async search(activity) {
+      return {
+        places: activity.id === "museums" ? [shared] : [shared, galleryAlternative],
+        code: "PLACES_AVAILABLE",
+        message: "Place data provided by Google Maps.",
+      };
+    },
+  };
+  const enriched = await enrichActivitiesWithPlaces(activities, destination, placesClient);
+  assert.deepEqual(enriched.get("museums").places.map(({ id }) => id), ["shared"]);
+  assert.deepEqual(enriched.get("art-galleries").places.map(({ id }) => id), ["gallery-only"]);
+  assert.ok([...enriched.values()].every(({ places }) => places.length <= 3));
 });
 
 test("POST /api/itinerary supports validated coordinates and makes one forecast request", async () => {

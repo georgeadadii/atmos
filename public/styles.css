@@ -562,6 +562,32 @@ td small { color: var(--muted); }
 .score-track { height: 0.25rem; margin-top: 0.75rem; overflow: hidden; background: #e7ece9; border-radius: 99px; }
 .score-track span { display: block; height: 100%; }
 .scheduled-activity > p { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.69rem; line-height: 1.5; }
+.place-recommendations { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.places-heading { display: flex; gap: 0.5rem; align-items: end; justify-content: space-between; }
+.places-heading span { color: var(--teal); font-size: 0.55rem; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
+.places-heading h6 { margin: 0.15rem 0 0; color: var(--ink); font-size: 0.76rem; }
+.places-heading > small { color: #5f6368; font-size: 0.6rem; font-weight: 750; white-space: nowrap; }
+.place-list { display: grid; gap: 0.65rem; margin: 0.7rem 0 0; padding: 0; list-style: none; }
+.place-card { min-width: 0; padding: 0.7rem; background: #f8faf9; border: 1px solid #dfe8e3; border-radius: 0.65rem; }
+.place-card.leading { background: #eef7f4; border-color: #a9cec2; box-shadow: inset 3px 0 var(--teal); }
+.place-title-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.5rem; align-items: start; }
+.place-rank { display: grid; width: 1.35rem; height: 1.35rem; place-items: center; color: #fff; font-size: 0.65rem; font-weight: 850; background: var(--blue); border-radius: 50%; }
+.place-title-row strong { display: block; overflow-wrap: anywhere; font-size: 0.72rem; line-height: 1.35; }
+.top-place { display: inline-block; margin-top: 0.2rem; padding: 0.1rem 0.3rem; color: #276b54; font-size: 0.52rem; font-weight: 850; text-transform: uppercase; background: #dcefe7; border-radius: 99px; }
+.place-score { color: var(--blue); font-size: 0.58rem; text-align: right; white-space: nowrap; }
+.place-score b { font-size: 0.76rem; }
+.place-score small { display: block; color: var(--muted); font-size: 0.48rem; }
+.place-card address { margin: 0.5rem 0 0 1.85rem; color: var(--muted); font-size: 0.62rem; font-style: normal; line-height: 1.4; }
+.place-facts { display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; margin: 0.55rem 0 0 1.85rem; color: #47626b; font-size: 0.59rem; }
+.place-facts small { color: inherit; }
+.place-card > a { display: inline-block; margin: 0.55rem 0 0 1.85rem; color: var(--blue); font-size: 0.62rem; font-weight: 800; }
+.rank-details { margin: 0.65rem 0 0 1.85rem; padding-top: 0.55rem; border-top: 1px dashed #cbd9d2; }
+.rank-details summary { color: var(--blue); font-size: 0.62rem; font-weight: 800; cursor: pointer; }
+.rank-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem; margin: 0.55rem 0 0; }
+.rank-details dl div { display: flex; gap: 0.25rem; justify-content: space-between; color: var(--muted); font-size: 0.54rem; }
+.rank-details dd { margin: 0; color: var(--ink); font-weight: 800; white-space: nowrap; }
+.rank-details p { margin: 0.55rem 0 0; color: var(--muted); font-size: 0.58rem; line-height: 1.5; }
+.places-empty { margin: 0.65rem 0 0; padding: 0.65rem; color: var(--muted); font-size: 0.62rem; line-height: 1.45; background: #f8faf8; border-radius: 0.55rem; }
 .suitability-excellent { color: #235e49; background: #dcefe7; }
 .suitability-good { color: #315f71; background: #dcecf2; }
 .suitability-moderate { color: #77581b; background: #fff0c2; }

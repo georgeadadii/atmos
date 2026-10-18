@@ -6,12 +6,14 @@ import { createActivitiesRouter } from "./routes/activities.js";
 import { createItineraryRouter } from "./routes/itinerary.js";
 import { createTravelRouter } from "./routes/travel.js";
 import { createOpenWeatherClient } from "./services/openWeather.js";
+import { createGooglePlacesClient } from "./services/googlePlaces.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(currentDirectory, "..", "public");
 
 export function createApp({
   openWeatherClient = createOpenWeatherClient(),
+  googlePlacesClient = createGooglePlacesClient(),
   now = Date.now,
 } = {}) {
   const app = express();
@@ -33,7 +35,7 @@ export function createApp({
   );
   app.use(
     "/api/itinerary",
-    createItineraryRouter({ openWeatherClient, now }),
+    createItineraryRouter({ openWeatherClient, googlePlacesClient, now }),
   );
   app.use(express.static(publicDirectory));
   app.use((error, _request, response, _next) => {

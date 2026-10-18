@@ -172,7 +172,7 @@
               </div>
               <div v-else class="activity-grid">
                 <label v-for="activity in activities" :key="activity.id" class="activity-card" :class="{ selected: selectedActivities.includes(activity.id) }">
-                  <input v-model="selectedActivities" type="checkbox" :value="activity.id">
+                  <input v-model="selectedActivities" type="checkbox" :value="activity.id" :disabled="itineraryLoading || (selectedActivityCount >= maximumSelectedActivities && !selectedActivities.includes(activity.id))">
                   <span class="activity-check" aria-hidden="true">✓</span>
                   <span class="activity-icon" aria-hidden="true">{{ activityIcon(activity) }}</span>
                   <span class="activity-copy">
@@ -195,7 +195,7 @@
                 </select>
               </div>
               <div class="selection-summary" aria-live="polite">
-                <span><strong>{{ selectedActivityCount }}</strong> selected</span>
+                <span><strong>{{ selectedActivityCount }}/{{ maximumSelectedActivities }}</strong> selected</span>
                 <span><strong>{{ availableItinerarySlots }}</strong> total slots</span>
               </div>
             </div>
@@ -261,6 +261,43 @@
                     </div>
                     <div class="score-track" aria-hidden="true"><span :class="suitabilityClass(activity.suitabilityScore)" :style="{ width: `${activity.suitabilityScore}%` }"></span></div>
                     <p>{{ activity.reason }}</p>
+                    <section class="place-recommendations" :aria-labelledby="`places-${dayIndex}-${activity.id}`">
+                      <div class="places-heading">
+                        <div>
+                          <span>Where to go</span>
+                          <h6 :id="`places-${dayIndex}-${activity.id}`">Recommended real places</h6>
+                        </div>
+                        <small v-if="activity.places.length">Google Maps</small>
+                      </div>
+                      <ol v-if="activity.places.length" class="place-list">
+                        <li v-for="(place, placeIndex) in activity.places" :key="place.id" class="place-card" :class="{ leading: placeIndex === 0 }">
+                          <div class="place-title-row">
+                            <span class="place-rank" :aria-label="`Rank ${placeIndex + 1}`">{{ placeIndex + 1 }}</span>
+                            <div><strong>{{ place.name }}</strong><span v-if="placeIndex === 0" class="top-place">Top match</span></div>
+                            <span class="place-score"><b>{{ place.placeScore }}</b>/100<small>Place score</small></span>
+                          </div>
+                          <address v-if="place.address">{{ place.address }}</address>
+                          <div class="place-facts">
+                            <span v-if="place.rating !== undefined">★ {{ formatNumber(place.rating) }}<small v-if="place.userRatingCount !== undefined"> ({{ place.userRatingCount.toLocaleString('en-IE') }} reviews)</small></span>
+                            <span v-else>Rating unavailable</span>
+                            <span v-if="place.distanceKm !== undefined">≈ {{ formatNumber(place.distanceKm) }} km straight-line</span>
+                            <span v-else>Distance unavailable</span>
+                          </div>
+                          <a v-if="place.googleMapsUri" :href="place.googleMapsUri" target="_blank" rel="noopener noreferrer">View on Google Maps <span aria-hidden="true">↗</span></a>
+                          <details class="rank-details">
+                            <summary>Why this rank?</summary>
+                            <dl>
+                              <div><dt>Activity relevance</dt><dd>{{ place.scoreBreakdown.activityRelevance.score }}/35</dd></div>
+                              <div><dt>Visitor rating</dt><dd>{{ place.scoreBreakdown.visitorRating.score }}/30</dd></div>
+                              <div><dt>Review confidence</dt><dd>{{ place.scoreBreakdown.reviewConfidence.score }}/20</dd></div>
+                              <div><dt>Proximity</dt><dd>{{ place.scoreBreakdown.proximity.score }}/15</dd></div>
+                            </dl>
+                            <p>{{ place.rankingExplanation }}</p>
+                          </details>
+                        </li>
+                      </ol>
+                      <p v-else class="places-empty">{{ activity.placeAvailability.message }}</p>
+                    </section>
                   </article>
                 </div>
                 <div v-else class="empty-day">
