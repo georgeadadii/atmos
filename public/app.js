@@ -4,6 +4,7 @@ import {
   MAX_SELECTED_ACTIVITIES,
   selectionValidation,
 } from "./itineraryHelpers.js";
+import { createTemperatureChart } from "./forecastChart.js";
 
 let activeTravelController = null;
 let latestTravelRequestId = 0;
@@ -67,6 +68,14 @@ createApp({
         (day) => day.representativeCondition.description,
       );
       return [...new Set(conditions.map(this.titleCase))].join(", ");
+    },
+    temperatureCharts() {
+      return Object.fromEntries(
+        (this.result?.forecast?.days ?? []).map((day) => [
+          day.date,
+          createTemperatureChart(day.periods),
+        ]),
+      );
     },
     selectedActivityCount() {
       return this.selectedActivities.length;
@@ -293,6 +302,7 @@ createApp({
         Number.isFinite(payload?.destination?.latitude) &&
         Number.isFinite(payload?.destination?.longitude) &&
         Array.isArray(payload?.forecast?.days) && payload.forecast.days.length === 3 &&
+        payload.forecast.days.every((day) => Array.isArray(day?.periods)) &&
         payload?.packing?.umbrella && payload?.packing?.temperature &&
         payload?.airQuality?.current &&
         Array.isArray(payload?.airQuality?.forecast?.maxima) &&
@@ -346,6 +356,20 @@ createApp({
     },
     formatNumber(value) {
       return new Intl.NumberFormat("en-IE", { maximumFractionDigits: 1 }).format(value);
+    },
+    hasMeasurement(value) {
+      return Number.isFinite(value);
+    },
+    formatWindDirection(value) {
+      if (!Number.isFinite(value)) return "Not available";
+      const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+      const direction = directions[Math.round(value / 45) % directions.length];
+      return `${direction} (${this.formatNumber(value)}°)`;
+    },
+    formatVisibility(value) {
+      if (!Number.isFinite(value)) return "Not available";
+      if (value >= 1_000) return `${this.formatNumber(value / 1_000)} km`;
+      return `${this.formatNumber(value)} m`;
     },
     titleCase(value) {
       if (typeof value !== "string") return "";

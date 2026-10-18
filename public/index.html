@@ -85,17 +85,90 @@
               <caption class="sr-only">Three-day weather forecast for {{ result.destination.name }}</caption>
               <thead><tr><th scope="col">Day</th><th scope="col">Conditions</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Wind</th><th scope="col">Rain</th></tr></thead>
               <tbody>
-                <tr v-for="day in result.forecast.days" :key="day.date">
-                  <th scope="row" data-label="Day">
-                    <span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span>
-                    <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
-                  </th>
-                  <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
-                  <td data-label="Low"><strong>{{ formatNumber(day.minimumTemperatureCelsius) }}°</strong></td>
-                  <td data-label="High"><strong>{{ formatNumber(day.maximumTemperatureCelsius) }}°</strong></td>
-                  <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
-                  <td data-label="Rain">{{ formatNumber(day.totalRainfallMm) }} <small>mm</small></td>
-                </tr>
+                <template v-for="day in result.forecast.days" :key="day.date">
+                  <tr>
+                    <th scope="row" data-label="Day">
+                      <span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span>
+                      <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
+                    </th>
+                    <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
+                    <td data-label="Low"><strong>{{ formatNumber(day.minimumTemperatureCelsius) }}°</strong></td>
+                    <td data-label="High"><strong>{{ formatNumber(day.maximumTemperatureCelsius) }}°</strong></td>
+                    <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
+                    <td data-label="Rain">{{ formatNumber(day.totalRainfallMm) }} <small>mm</small></td>
+                  </tr>
+                  <tr class="forecast-detail-row">
+                    <td colspan="6">
+                      <details class="forecast-details">
+                        <summary :aria-label="`View detailed forecast for ${formatDay(day.date)}, ${formatShortDate(day.date)}`">
+                          <span>View detailed forecast</span>
+                          <small>{{ day.periods.length }} three-hour {{ day.periods.length === 1 ? 'period' : 'periods' }}</small>
+                        </summary>
+                        <div class="forecast-detail-content">
+                          <div class="detail-heading">
+                            <div>
+                              <p class="section-kicker">Three-hour outlook</p>
+                              <h3>{{ formatDay(day.date) }}, {{ formatShortDate(day.date) }}</h3>
+                            </div>
+                            <span>Times shown at the destination</span>
+                          </div>
+
+                          <p v-if="day.partialCoverage" class="partial-explanation">Only the available forecast periods are shown for this day. Past or missing periods are not estimated.</p>
+
+                          <figure v-if="temperatureCharts[day.date]?.points.length" class="temperature-chart">
+                            <figcaption>Temperature trend in °C</figcaption>
+                            <svg :viewBox="`0 0 ${temperatureCharts[day.date].width} ${temperatureCharts[day.date].height}`" role="img" :aria-labelledby="`chart-title-${day.date} chart-description-${day.date}`">
+                              <title :id="`chart-title-${day.date}`">Temperature trend for {{ formatDay(day.date) }}</title>
+                              <desc :id="`chart-description-${day.date}`">A line chart of the temperatures listed in the detailed forecast below, using destination-local times.</desc>
+                              <g v-for="tick in temperatureCharts[day.date].yTicks" :key="tick.temperature">
+                                <line class="chart-grid-line" :x1="temperatureCharts[day.date].plot.left" :x2="temperatureCharts[day.date].width - temperatureCharts[day.date].plot.right" :y1="tick.y" :y2="tick.y"></line>
+                                <text class="chart-axis-label" :x="temperatureCharts[day.date].plot.left - 8" :y="tick.y + 4" text-anchor="end">{{ formatNumber(tick.temperature) }}°</text>
+                              </g>
+                              <polyline v-for="segment in temperatureCharts[day.date].segments" :key="segment" class="chart-line" :points="segment"></polyline>
+                              <g v-for="point in temperatureCharts[day.date].points" :key="`${point.time}-${point.index}`">
+                                <circle class="chart-point" :cx="point.x" :cy="point.y" r="5">
+                                  <title>{{ point.time }}: {{ formatNumber(point.temperature) }}°C</title>
+                                </circle>
+                                <text class="chart-value" :x="point.x" :y="point.y - 10" text-anchor="middle">{{ formatNumber(point.temperature) }}°</text>
+                                <text class="chart-axis-label" :x="point.x" :y="temperatureCharts[day.date].height - 14" text-anchor="middle">{{ point.time }}</text>
+                              </g>
+                              <text class="chart-axis-title" x="14" :y="temperatureCharts[day.date].height / 2" text-anchor="middle" :transform="`rotate(-90 14 ${temperatureCharts[day.date].height / 2})`">Temperature °C</text>
+                              <text class="chart-axis-title" :x="temperatureCharts[day.date].width / 2" :y="temperatureCharts[day.date].height - 1" text-anchor="middle">Destination-local time</text>
+                            </svg>
+                          </figure>
+
+                          <div class="period-list" role="list" :aria-label="`Three-hour forecast for ${formatDay(day.date)}`">
+                            <article v-for="period in day.periods" :key="period.forecastAt" class="period-card" role="listitem">
+                              <header>
+                                <div><time :datetime="period.forecastAt">{{ period.localTime }}</time><small>Local time</small></div>
+                                <span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(period.condition.name) }}</span>
+                                <strong>{{ titleCase(period.condition.description) }}</strong>
+                              </header>
+                              <dl class="period-core">
+                                <div><dt>Temperature</dt><dd>{{ formatNumber(period.temperatureCelsius) }}°C</dd></div>
+                                <div><dt>Feels like</dt><dd>{{ hasMeasurement(period.feelsLikeCelsius) ? `${formatNumber(period.feelsLikeCelsius)}°C` : 'Not available' }}</dd></div>
+                                <div><dt>Rain chance</dt><dd>{{ hasMeasurement(period.precipitationProbabilityPercent) ? `${formatNumber(period.precipitationProbabilityPercent)}%` : 'Not available' }}</dd></div>
+                                <div><dt>Rainfall</dt><dd>{{ hasMeasurement(period.rainfallMm) ? `${formatNumber(period.rainfallMm)} mm` : 'Not available' }}</dd></div>
+                                <div><dt>Wind</dt><dd>{{ formatNumber(period.windSpeedKmh) }} km/h</dd></div>
+                                <div v-if="hasMeasurement(period.windGustKmh)"><dt>Gusts</dt><dd>{{ formatNumber(period.windGustKmh) }} km/h</dd></div>
+                              </dl>
+                              <details class="period-more">
+                                <summary>Additional measurements</summary>
+                                <dl>
+                                  <div><dt>Humidity</dt><dd>{{ hasMeasurement(period.humidityPercent) ? `${formatNumber(period.humidityPercent)}%` : 'Not available' }}</dd></div>
+                                  <div><dt>Cloud cover</dt><dd>{{ hasMeasurement(period.cloudCoveragePercent) ? `${formatNumber(period.cloudCoveragePercent)}%` : 'Not available' }}</dd></div>
+                                  <div><dt>Pressure</dt><dd>{{ hasMeasurement(period.pressureHpa) ? `${formatNumber(period.pressureHpa)} hPa` : 'Not available' }}</dd></div>
+                                  <div><dt>Visibility</dt><dd>{{ formatVisibility(period.visibilityMetres) }}</dd></div>
+                                  <div><dt>Wind direction</dt><dd>{{ formatWindDirection(period.windDirectionDegrees) }}</dd></div>
+                                </dl>
+                              </details>
+                            </article>
+                          </div>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>

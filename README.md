@@ -14,6 +14,7 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 ```text
 atmos/
 ├── public/
+│   ├── forecastChart.js
 ├── server/
 │   ├── routes/activities.js
 │   ├── routes/travel.js
@@ -53,7 +54,7 @@ Enable **Places API (New)** and billing for the Google Cloud project that owns t
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Each forecast day has an accessible disclosure containing the available three-hour periods and a compact inline SVG temperature trend. The detailed rows provide the chart's textual equivalent and include temperature, feels-like temperature, rain probability and volume, wind, and available secondary measurements. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
 
 To use the planner, search for and resolve a destination, select at least one activity, choose a maximum of 1–3 activities per day, and select **Generate my itinerary**. The client explains capacity mismatches before submission. Changing a selection marks the displayed plan as out of date until it is regenerated. Starting a destination search clears the previous itinerary and aborts any pending itinerary request, while retaining activity preferences for convenient replanning.
 
@@ -96,7 +97,29 @@ An abbreviated success response is:
           "icon": "10d"
         },
         "intervalCount": 4,
-        "partialCoverage": true
+        "partialCoverage": true,
+        "periods": [
+          {
+            "forecastAt": "2026-10-17T12:00:00+00:00",
+            "localTime": "12:00",
+            "temperatureCelsius": 11.2,
+            "feelsLikeCelsius": 10.1,
+            "precipitationProbabilityPercent": 30,
+            "rainfallMm": 0.4,
+            "windSpeedKmh": 14.8,
+            "windGustKmh": 22.1,
+            "windDirectionDegrees": 240,
+            "humidityPercent": 78,
+            "cloudCoveragePercent": 85,
+            "pressureHpa": 1013,
+            "visibilityMetres": 10000,
+            "condition": {
+              "name": "Rain",
+              "description": "light rain",
+              "icon": "10d"
+            }
+          }
+        ]
       }
     ]
   },
@@ -162,6 +185,10 @@ An abbreviated success response is:
   ]
 }
 ```
+
+The `periods` arrays are derived from the same OpenWeather 5-day / 3-hour response used for daily summaries, so this feature needs no additional OpenWeather subscription or request. Periods are chronological and are grouped and labelled using OpenWeather's fixed offset for the destination. This avoids applying the browser's timezone, but a fixed offset cannot model every daylight-saving transition like an IANA timezone can.
+
+OpenWeather supplies observations at three-hour resolution rather than for every clock hour. The current day and occasional later days can therefore have partial coverage. Atmos shows only the available periods and never fills gaps. Optional measurements are returned as `null` and shown as unavailable when the provider omits them or supplies invalid values. In line with OpenWeather's forecast semantics and the established daily aggregation, an omitted `rain` object means no rain is forecast and is shown as `0 mm`; a present but malformed rain measurement remains unavailable.
 
 Errors never include the API key or a stack trace:
 

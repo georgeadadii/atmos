@@ -390,6 +390,114 @@ tbody th { min-width: 10rem; }
 .weather-symbol { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; color: var(--blue); font-size: 1.5rem; background: #eaf3f4; border-radius: 50%; }
 td small { color: var(--muted); }
 
+.forecast-detail-row > td { padding: 0; background: #fbfdfb; }
+
+.forecast-details > summary {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  color: var(--blue);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.forecast-details > summary:hover { background: #f2f7f5; }
+.forecast-details > summary small { margin-left: auto; font-weight: 600; }
+
+.forecast-detail-content {
+  padding: 1.4rem 1.5rem 1.6rem;
+  background: #f7faf8;
+  border-top: 1px solid var(--line);
+}
+
+.detail-heading {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.detail-heading h3 { margin: 0; color: var(--blue-dark); font-size: 1.2rem; }
+.detail-heading > span { color: var(--muted); font-size: 0.75rem; }
+
+.partial-explanation {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.85rem;
+  color: #654b18;
+  font-size: 0.78rem;
+  background: #fff8e6;
+  border-left: 3px solid #d3a331;
+  border-radius: 0.45rem;
+}
+
+.temperature-chart {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+}
+
+.temperature-chart figcaption {
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.temperature-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart-grid-line { stroke: #dce6df; stroke-width: 1; }
+.chart-line { fill: none; stroke: var(--teal); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+.chart-point { fill: #fff; stroke: var(--blue); stroke-width: 3; }
+.chart-value { fill: var(--blue-dark); font-size: 11px; font-weight: 800; }
+.chart-axis-label { fill: var(--muted); font-size: 10px; }
+.chart-axis-title { fill: var(--muted); font-size: 10px; font-weight: 700; }
+
+.period-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+  gap: 0.8rem;
+}
+
+.period-card {
+  min-width: 0;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+}
+
+.period-card > header {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.65rem;
+  align-items: center;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #e8efeb;
+}
+
+.period-card time { display: block; color: var(--blue-dark); font-size: 1.15rem; font-weight: 850; }
+.period-card header small { display: block; color: var(--muted); font-size: 0.58rem; text-transform: uppercase; }
+.period-card header strong { font-size: 0.82rem; }
+
+.period-core,
+.period-more dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 0; }
+.period-core div,
+.period-more dl div { padding: 0.65rem 0.35rem; border-bottom: 1px solid #edf1ee; }
+.period-core dt,
+.period-more dt { color: var(--muted); font-size: 0.64rem; font-weight: 750; text-transform: uppercase; }
+.period-core dd,
+.period-more dd { margin: 0.15rem 0 0; color: var(--ink); font-size: 0.78rem; font-weight: 750; }
+
+.period-more { margin-top: 0.7rem; }
+.period-more summary { color: var(--blue); font-size: 0.72rem; font-weight: 800; cursor: pointer; }
+.period-more dl { margin-top: 0.45rem; }
+
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: 1.5rem; align-items: start; }
 .packing-panel,
 .air-panel { overflow: hidden; }
@@ -651,6 +759,15 @@ footer p { max-width: 35rem; margin: 0; color: var(--muted); font-size: 0.72rem;
   .condition-cell { min-width: 0; }
   .partial-badge { margin: 0 0 0 auto; }
   .day-date { margin-right: auto; margin-left: 0.5rem; }
+  tbody tr.forecast-detail-row { display: block; padding: 0; }
+  .forecast-detail-row > td { display: block; padding: 0; }
+  .forecast-detail-row > td::before { content: none; }
+  .forecast-details > summary,
+  .forecast-detail-content { padding-right: 1rem; padding-left: 1rem; }
+  .detail-heading { display: grid; }
+  .temperature-chart { padding: 0.6rem 0.3rem; overflow-x: auto; }
+  .temperature-chart svg { min-width: 34rem; }
+  .period-list { grid-template-columns: 1fr; }
   .pollutant-details li { grid-template-columns: 1fr auto; }
   .pollutant-details li small { grid-column: 1 / -1; justify-self: start; }
   .planner-intro,

@@ -1,18 +1,28 @@
 import { AppError } from "../errors.js";
-import { addLocalDays, localDate } from "./time.js";
+import { addLocalDays, localDate, localDateTime } from "./time.js";
 
 const round = (value, places = 1) => Number(value.toFixed(places));
 
+function optionalNumber(value, { minimum = -Infinity, maximum = Infinity } = {}) {
+  return Number.isFinite(value) && value >= minimum && value <= maximum
+    ? value
+    : null;
+}
+
 function parseInterval(interval) {
+  const timestamp = interval?.dt;
   const rain = interval?.rain;
-  const rainfall = rain === undefined ? 0 : rain?.["3h"];
+  const measuredRainfall = optionalNumber(rain?.["3h"], { minimum: 0 });
+  const rainfall = measuredRainfall ?? 0;
   const condition = interval?.weather?.[0];
   const temperature = interval?.main?.temp;
   const minimum = interval?.main?.temp_min ?? temperature;
   const maximum = interval?.main?.temp_max ?? temperature;
 
   if (
-    !Number.isFinite(interval?.dt) ||
+    !Number.isFinite(timestamp) ||
+    !Number.isFinite(timestamp * 1000) ||
+    Number.isNaN(new Date(timestamp * 1000).getTime()) ||
     !Number.isFinite(temperature) ||
     !Number.isFinite(minimum) ||
     !Number.isFinite(maximum) ||
@@ -27,12 +37,36 @@ function parseInterval(interval) {
   }
 
   return {
-    timestamp: interval.dt,
+    timestamp,
     temperature,
     minimum,
     maximum,
     windSpeedKmh: interval.wind.speed * 3.6,
     rainfall,
+    feelsLikeCelsius: optionalNumber(interval?.main?.feels_like),
+    precipitationProbabilityPercent:
+      optionalNumber(interval?.pop, { minimum: 0, maximum: 1 }) === null
+        ? null
+        : round(interval.pop * 100),
+    rainfallMm: rain === undefined ? 0 : measuredRainfall,
+    windGustKmh:
+      optionalNumber(interval?.wind?.gust, { minimum: 0 }) === null
+        ? null
+        : round(interval.wind.gust * 3.6),
+    windDirectionDegrees: optionalNumber(interval?.wind?.deg, {
+      minimum: 0,
+      maximum: 360,
+    }),
+    humidityPercent: optionalNumber(interval?.main?.humidity, {
+      minimum: 0,
+      maximum: 100,
+    }),
+    cloudCoveragePercent: optionalNumber(interval?.clouds?.all, {
+      minimum: 0,
+      maximum: 100,
+    }),
+    pressureHpa: optionalNumber(interval?.main?.pressure, { minimum: 0 }),
+    visibilityMetres: optionalNumber(interval?.visibility, { minimum: 0 }),
     condition: {
       name: condition.main,
       description: condition.description,
@@ -86,7 +120,17 @@ export function processForecast(payload, { now = Date.now() } = {}) {
       continue;
     }
     const date = localDate(interval.timestamp, timezoneOffsetSeconds);
-    if (dateSet.has(date)) grouped.get(date).push(interval);
+    if (dateSet.has(date)) {
+      const forecastAt = localDateTime(
+        interval.timestamp,
+        timezoneOffsetSeconds,
+      );
+      grouped.get(date).push({
+        ...interval,
+        forecastAt,
+        localTime: forecastAt.slice(11, 16),
+      });
+    }
   }
 
   if (dates.some((date) => grouped.get(date).length === 0)) {
@@ -117,6 +161,23 @@ export function processForecast(payload, { now = Date.now() } = {}) {
       representativeCondition: representativeCondition(intervals),
       intervalCount: intervals.length,
       partialCoverage: intervals.length < 8,
+      periods: intervals.map((interval) => ({
+        forecastAt: interval.forecastAt,
+        localTime: interval.localTime,
+        temperatureCelsius: interval.temperature,
+        feelsLikeCelsius: interval.feelsLikeCelsius,
+        precipitationProbabilityPercent:
+          interval.precipitationProbabilityPercent,
+        rainfallMm: interval.rainfallMm,
+        windSpeedKmh: round(interval.windSpeedKmh),
+        windGustKmh: interval.windGustKmh,
+        windDirectionDegrees: interval.windDirectionDegrees,
+        humidityPercent: interval.humidityPercent,
+        cloudCoveragePercent: interval.cloudCoveragePercent,
+        pressureHpa: interval.pressureHpa,
+        visibilityMetres: interval.visibilityMetres,
+        condition: interval.condition,
+      })),
     };
   });
 

@@ -18,6 +18,11 @@ const FORECAST_DAY_COUNT = 3;
 export const MAX_SELECTED_ACTIVITIES = 6;
 const MAX_PLACE_SEARCH_CONCURRENCY = 2;
 
+function dailySummary(forecastDay) {
+  const { periods: _periods, ...summary } = forecastDay;
+  return summary;
+}
+
 export function validateItineraryRequest(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new AppError(
@@ -202,7 +207,7 @@ export function createItineraryRouter({
 
       const days = weather.days.map((forecastDay, dayIndex) => ({
         date: forecastDay.date,
-        forecast: forecastDay,
+        forecast: dailySummary(forecastDay),
         activities: activities
           .filter((activity) => plan.assignments[activity.id] === dayIndex)
           .map((activity) => {
