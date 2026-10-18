@@ -6,7 +6,7 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 
 - HTML5, CSS3, JavaScript, and Vue 3 loaded from a CDN
 - Node.js 22+ and Express
-- Native `fetch` and the OpenWeather Geocoding, 5 day / 3 hour Forecast, and Air Pollution APIs
+- Native `fetch`, the OpenWeather APIs, and Google Places API (New)
 - Node.js built-in test runner
 
 ## Project structure
@@ -24,8 +24,10 @@ atmos/
 │   │   ├── airQuality.js
 │   │   ├── destinationSelection.js
 │   │   ├── itineraryPlanner.js
+│   │   ├── googlePlaces.js
 │   │   ├── openWeather.js
 │   │   ├── packingRecommendations.js
+│   │   ├── placeRanking.js
 │   │   ├── time.js
 │   │   └── weatherProcessing.js
 │   ├── errors.js
@@ -45,7 +47,9 @@ npm install
 cp .env.example .env
 ```
 
-Set `OPENWEATHER_API_KEY` in `.env`. The key is read only by the backend and must not be placed in `public/` or committed. `PORT` is optional and defaults to `3000`.
+Set `OPENWEATHER_API_KEY` in `.env`. To enable real-place suggestions, also set `GOOGLE_PLACES_API_KEY`. Both keys are read only by the backend and must not be placed in `public/` or committed. `PORT` is optional and defaults to `3000`. Atmos still generates its complete weather itinerary when the Places key is absent.
+
+Enable **Places API (New)** and billing for the Google Cloud project that owns the Places key. Restrict the key to the Places API and, where deployment permits, to the backend's server IPs. Set project quotas and billing budget alerts appropriate to expected use; these controls reduce risk but do not guarantee that unexpected charges cannot occur. Ratings and review counts raise a search request to Google's Enterprise field tier. Outdoor dining additionally requests `outdoorSeating`, an Enterprise + Atmosphere field, because Atmos otherwise cannot make that claim honestly. The service uses explicit per-category field masks and requests no other fields from those tiers.
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
@@ -172,9 +176,9 @@ Errors never include the API key or a stack trace:
 
 ## Itinerary API
 
-`GET /api/activities` returns the six supported activities with only their public display fields: `id`, `name`, `description`, and `environment`. The dashboard uses this endpoint instead of duplicating the server catalogue or exposing its internal scoring coefficients.
+`GET /api/activities` returns the twelve supported activities with only their public display fields: `id`, `name`, `description`, and `environment`, plus the global `maximumSelectedActivities` value. The dashboard uses this endpoint instead of duplicating the server catalogue or exposing internal scoring or Places search configuration.
 
-`POST /api/itinerary` creates a three-day, weather-aware itinerary from a destination, one or more supported activity identifiers, and a daily capacity of 1, 2 or 3. It reuses the travel API's geocoding and coordinate-selection workflow, but makes only one forecast request and does not request air-quality data.
+`POST /api/itinerary` creates a three-day, weather-aware itinerary from a destination, one to six supported activity identifiers, and a daily capacity of 1, 2 or 3. It reuses the travel API's validated geocoding coordinates, makes one forecast request, and does not request air-quality data. The catalogue is larger for browsing, but the six-selection cap keeps the exhaustive scheduler's search space bounded. Both browser and server enforce this cap.
 
 Supported activities and their principal preferences are:
 
@@ -186,6 +190,12 @@ Supported activities and their principal preferences are:
 | `museums` | Indoor | 4–32°C | Very low | 60 km/h |
 | `shopping` | Indoor | 4–32°C | Low | 55 km/h |
 | `outdoor-dining` | Outdoor | 15–28°C | Very high | 25 km/h |
+| `historical-sites` | Outdoor | 8–27°C | Moderate | 38 km/h |
+| `parks-gardens` | Outdoor | 10–28°C | Moderate | 35 km/h |
+| `art-galleries` | Indoor | 4–32°C | Very low | 60 km/h |
+| `cafes` | Indoor | 3–33°C | Very low | 60 km/h |
+| `cultural-attractions` | Indoor | 7–29°C | Low | 45 km/h |
+| `indoor-entertainment` | Indoor | 3–33°C | Very low | 60 km/h |
 
 The exact penalty weights are points per unit plus the maximum interval-share penalty. For example, beach rain costs 9 points/mm plus up to 30 points when every available interval is rainy.
 
@@ -197,6 +207,12 @@ The exact penalty weights are points per unit plus the maximum interval-share pe
 | `museums` | 0.4 | 0.2 + 1 | 0.2 + 1 | 0.5 |
 | `shopping` | 0.5 | 0.4 + 2 | 0.25 + 1 | 0.5 |
 | `outdoor-dining` | 2.5 | 8 + 30 | 1.5 + 12 | 2 |
+| `historical-sites` | 1.8 | 4 + 16 | 0.8 + 6 | 2 |
+| `parks-gardens` | 2 | 5 + 20 | 1 + 8 | 2 |
+| `art-galleries` | 0.4 | 0.2 + 1 | 0.2 + 1 | 0.5 |
+| `cafes` | 0.4 | 0.3 + 1.5 | 0.2 + 1 | 0.5 |
+| `cultural-attractions` | 1 | 2 + 8 | 0.5 + 4 | 1 |
+| `indoor-entertainment` | 0.35 | 0.2 + 1 | 0.2 + 1 | 0.5 |
 
 Example request:
 
@@ -295,6 +311,55 @@ The scheduler evaluates every assignment of the selected activities to the three
 Requests fail with predictable JSON errors for a missing body or city, empty/non-string selections, duplicate or unknown identifiers, invalid coordinates, capacities outside 1–3, and more activities than the available `3 × activitiesPerDay` slots. Ambiguous cities return the same `300` candidate response as the travel API. Missing days, malformed upstream data, authentication failures, rate limits, timeouts, and network failures retain the existing safe weather-service errors. No activity is silently discarded and no weather is fabricated.
 
 The browser adds only presentational score labels (Excellent, Good, Moderate, and Limited); the numeric scores, placement, capacity enforcement, and explanations all come from the server. An empty day is shown as returned and is never filled with a fabricated activity.
+
+## Two independent recommendation systems
+
+Atmos deliberately separates **when** from **where**:
+
+1. The weather scheduler scores every selected activity against each forecast day and remains the sole authority for assigning activities to days.
+2. Only after that plan is complete, the place recommender searches around the already validated destination coordinates and ranks possible venues. Google ratings never affect day assignment.
+
+The backend uses Places API (New) `places:searchNearby` for supported Table A place types. Outdoor dining uses `places:searchText` because its semantic query is more specific; it applies strict `restaurant` type filtering and a bounded location rectangle, requests Google's `outdoorSeating` field, and rejects results unless that field is explicitly `true`. Every other category uses explicit nearby types, including `hiking_area`, `museum`, `historical_landmark`, `park`, `art_gallery`, `cafe`, `cultural_center`, and `movie_theater` with closely related types where appropriate.
+
+Each search requests at most 10 candidates within a 25 km destination-level area. At most two searches run concurrently. Text results outside the same 25 km straight-line ranking boundary are rejected, and malformed or irrelevant candidates are omitted. Atmos does not persist or pre-fetch Places content and avoids duplicate place IDs across activities when an alternative is available. A result set can therefore contain fewer than three recommendations.
+
+The field mask is:
+
+```text
+places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri,places.types,places.rating,places.userRatingCount
+```
+
+These are the only fields needed for identity, display, relevance, rating evidence, distance and Maps linking. Search responses are not sent to the browser until the server has filtered and ranked them; the API key is never part of a client request.
+
+Outdoor-dining searches add `places.outdoorSeating` to that mask and use it only as a required boolean filter. No other category requests that higher-tier field.
+
+### Atmos Place Score
+
+The Atmos Place Score is a deterministic application heuristic, not a scientific measure of quality, safety, accessibility or availability:
+
+```text
+Place score = activity relevance + visitor rating + review confidence + proximity
+Maximum     =          35       +       30       +        20         +    15 = 100
+```
+
+- **Activity relevance (0, 22 or 35):** 35 for a verified Google type in the activity's direct-match set, 22 for a verified related type, and rejection when neither set matches. No name-based or unsupported amenity inference is used.
+- **Visitor rating (0–30):** a present Google rating is normalised linearly as `rating ÷ 5 × 30`. A missing or invalid rating receives the neutral midpoint of 15, never a maximum. The raw rating component is intentionally separate from review confidence.
+- **Review confidence (0–20):** `min(20, log10(review count + 1) ÷ 4 × 20)`. Confidence grows gradually and reaches its cap at 10,000 reviews. A missing or invalid count receives 0. This rewards the amount of evidence without altering Google's rating value.
+- **Proximity (0–15):** haversine straight-line distance from the resolved destination centre declines linearly from 15 at the centre to 0 at 25 km. A missing coordinate receives 0; a known distance beyond 25 km is rejected. This is not route distance or journey time.
+
+Components are calculated at full precision for sorting, rounded to one decimal for the response, and the displayed total is the sum of those rounded components. Sorting uses the unrounded total, then activity relevance, review confidence, and finally the stable Google place ID. Identical inputs therefore produce identical output. Addresses and HTTPS Maps links are omitted when missing or malformed rather than invented. A missing display name or stable place ID makes a candidate unusable.
+
+Each scheduled activity always includes `places` and `placeAvailability`. Missing configuration, rejected credentials, quota/rate limiting, network errors, timeouts, malformed payloads, empty results and sparse relevant results all produce an empty or shorter `places` array plus an honest availability message. None of these failures changes or removes the weather itinerary.
+
+### Google Maps attribution and data use
+
+Place cards label their Google-supplied content **Google Maps** and keep it visually separate from Atmos's own weather and ranking output. Maps links open the provider URL returned by Google. If the product later displays reviews, photos, or third-party-attributed fields, their additional author/provider attribution requirements must also be implemented before those fields are shipped.
+
+Google Maps Platform generally restricts caching and storage of Places content (place IDs have a documented exception). This implementation keeps results only in the request/response lifecycle and adds no persistent cache or database. Review the current Places policies and the Google Maps Platform EEA Terms before deployment, especially for an EEA billing account. Google controls supported types, pricing tiers, policy and regional availability, so these should be reviewed again before submission or production use.
+
+Primary references: [Nearby Search (New)](https://developers.google.com/maps/documentation/places/web-service/nearby-search), [Text Search (New)](https://developers.google.com/maps/documentation/places/web-service/text-search), [Place Types (New)](https://developers.google.com/maps/documentation/places/web-service/place-types), [Place data fields and billing tiers](https://developers.google.com/maps/documentation/places/web-service/data-fields), and [Places policies and attribution](https://developers.google.com/maps/documentation/places/web-service/policies).
+
+Known limitations: recommendations use a destination-centre radius rather than neighbourhood context; straight-line proximity is not travel effort; a broad city centre can underrepresent outer districts; place types do not prove opening hours, outdoor seating, accessibility, trail conditions, ticket price or current availability; and some genuine venues may be excluded by conservative type matching.
 
 ## Processing decisions
 

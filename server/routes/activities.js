@@ -7,6 +7,7 @@ export function createActivitiesRouter() {
 
   router.get("/", (_request, response) => {
     response.status(200).json({
+      maximumSelectedActivities: 6,
       activities: ACTIVITY_CATALOGUE.map(
         ({ id, name, description, environment }) => ({
           id,
