@@ -40,6 +40,7 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
             "Three destination-local calendar days including the current day.",
           timezoneOffsetSeconds: weather.timezoneOffsetSeconds,
           days: weather.days,
+          intervalsByDate: weather.intervalsByDate,
         },
         packing,
         airQuality: {

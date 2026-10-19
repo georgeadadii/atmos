@@ -53,7 +53,7 @@ Enable **Places API (New)** and billing for the Google Cloud project that owns t
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, expandable three-hour detail and metric charts, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
 
 To use the planner, search for and resolve a destination, select at least one activity, choose a maximum of 1–3 activities per day, and select **Generate my itinerary**. The client explains capacity mismatches before submission. Changing a selection marks the displayed plan as out of date until it is regenerated. Starting a destination search clears the previous itinerary and aborts any pending itinerary request, while retaining activity preferences for convenient replanning.
 
@@ -98,7 +98,24 @@ An abbreviated success response is:
         "intervalCount": 4,
         "partialCoverage": true
       }
-    ]
+    ],
+    "intervalsByDate": {
+      "2026-10-17": [
+        {
+          "timestamp": 1792238400,
+          "temperature": 11.4,
+          "minimum": 10.8,
+          "maximum": 12.1,
+          "windSpeedKmh": 14.8,
+          "rainfall": 0.4,
+          "condition": {
+            "name": "Rain",
+            "description": "light rain",
+            "icon": "10d"
+          }
+        }
+      ]
+    }
   },
   "packing": {
     "umbrella": {

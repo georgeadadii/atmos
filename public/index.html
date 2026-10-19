@@ -4,25 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Plan a three-day trip with destination weather, packing advice, and air-quality guidance from Atmos.">
-    <meta name="theme-color" content="#0b3558">
-    <title>Atmos — Weather-aware travel planning</title>
+    <meta name="theme-color" content="#f4f7f4">
+    <title>Atmos | Weather-aware travel planning</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <main id="app" v-cloak>
+      <a class="skip-link" href="#city-search">Skip to destination search</a>
       <header class="site-header">
         <a class="brand" href="#" aria-label="Atmos home">
           <span class="brand-mark" aria-hidden="true"><span class="brand-sun"></span><span class="brand-cloud"></span></span>
           <span>Atmos</span>
         </a>
-        <div class="header-actions">
-          <p class="header-note">Weather-aware travel planning</p>
-          <button class="theme-toggle" type="button" :aria-pressed="theme === 'dark'" :aria-label="`Use ${theme === 'dark' ? 'light' : 'dark'} theme`" @click="toggleTheme">
-            <svg v-if="theme === 'dark'" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
-            <svg v-else aria-hidden="true" viewBox="0 0 24 24"><path d="M20.4 15.1A8.5 8.5 0 0 1 8.9 3.6 8.5 8.5 0 1 0 20.4 15.1Z"></path></svg>
-            <span>{{ theme === 'dark' ? 'Light' : 'Dark' }}</span>
-          </button>
-        </div>
+        <nav class="site-nav" aria-label="Page sections">
+          <a href="#forecast-title">Forecast</a>
+          <a href="#packing-title">Packing</a>
+          <a href="#planner-title">Itinerary</a>
+        </nav>
       </header>
 
       <section class="hero" aria-labelledby="page-title">
@@ -42,7 +40,7 @@
             <span class="search-step" aria-hidden="true">Start here</span>
             <div>
               <label for="city-search">Where are you heading?</label>
-              <p id="search-hint" class="search-hint">City and country code gives the most precise result.</p>
+              <p id="search-hint" class="search-hint">A city and country code give the most precise result.</p>
             </div>
           </div>
           <div class="search-row">
@@ -101,10 +99,13 @@
             <table>
               <caption class="sr-only">Three-day weather forecast for {{ result.destination.name }}</caption>
               <thead><tr><th scope="col">Day</th><th scope="col">Conditions</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Wind</th><th scope="col">Rain</th></tr></thead>
-              <tbody>
-                <tr v-for="day in result.forecast.days" :key="day.date">
+              <tbody v-for="day in result.forecast.days" :key="day.date">
+                <tr class="forecast-summary-row" :class="{ expanded: expandedForecastDate === day.date }">
                   <th scope="row" data-label="Day">
-                    <span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span>
+                    <button class="forecast-toggle" type="button" :aria-expanded="expandedForecastDate === day.date" :aria-controls="`forecast-detail-${day.date}`" @click="toggleForecastDay(day.date)">
+                      <span><span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span></span>
+                      <span class="toggle-icon" aria-hidden="true">⌄</span>
+                    </button>
                     <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
                   </th>
                   <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
@@ -113,13 +114,68 @@
                   <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
                   <td data-label="Rain">{{ formatNumber(day.totalRainfallMm) }} <small>mm</small></td>
                 </tr>
+                <tr v-if="expandedForecastDate === day.date" class="forecast-detail-row">
+                  <td :id="`forecast-detail-${day.date}`" colspan="6">
+                    <div class="forecast-detail">
+                      <div class="detail-heading">
+                        <div>
+                          <p class="section-kicker">Three-hour detail</p>
+                          <h3>{{ formatDay(day.date) }}, {{ formatCompactDate(day.date) }}</h3>
+                          <p>{{ day.intervalCount }} forecast periods available<span v-if="day.partialCoverage">, so this is a partial day</span>.</p>
+                        </div>
+                        <label class="metric-control">
+                          <span>Chart metric</span>
+                          <select v-model="selectedForecastMetric" @change="resetChartPointSelection">
+                            <option v-for="metric in forecastMetrics" :key="metric.id" :value="metric.id">{{ metric.label }}</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <dl class="forecast-overview-cards">
+                        <div><dt>Temperature range</dt><dd>{{ formatNumber(day.minimumTemperatureCelsius) }}–{{ formatNumber(day.maximumTemperatureCelsius) }}°C</dd></div>
+                        <div><dt>Average wind</dt><dd>{{ formatNumber(day.averageWindSpeedKmh) }} km/h</dd></div>
+                        <div><dt>Total rainfall</dt><dd>{{ formatNumber(day.totalRainfallMm) }} mm</dd></div>
+                        <div><dt>Forecast periods</dt><dd>{{ day.intervalCount }} × 3 hr</dd></div>
+                      </dl>
+
+                      <div v-if="expandedIntervals.length" class="weather-chart-panel">
+                        <div class="chart-heading">
+                          <div><span>{{ selectedMetric.label }}</span><strong>{{ selectedPoint ? formatMetricValue(selectedPoint[selectedMetric.field]) : 'Unavailable' }}</strong></div>
+                          <p>{{ chartStatusText() }}</p>
+                        </div>
+                        <svg class="weather-chart" viewBox="0 0 760 250" role="img" :aria-labelledby="`chart-title-${day.date} chart-desc-${day.date}`" @pointermove="selectChartPointFromPointer" @pointerleave="resetChartPointSelection">
+                          <title :id="`chart-title-${day.date}`">{{ selectedMetric.label }} chart for {{ formatDay(day.date) }}</title>
+                          <desc :id="`chart-desc-${day.date}`">Values for each available three-hour forecast period. Hover across the chart, or focus the time buttons below, to inspect exact values.</desc>
+                          <g class="chart-grid" aria-hidden="true">
+                            <line v-for="tick in chartTicks" :key="tick.y" x1="52" x2="736" :y1="tick.y" :y2="tick.y"></line>
+                            <text v-for="tick in chartTicks" :key="`label-${tick.y}`" x="44" :y="tick.y + 4" text-anchor="end">{{ formatMetricValue(tick.value) }}</text>
+                          </g>
+                          <path class="chart-area" :d="chartAreaPath" aria-hidden="true"></path>
+                          <path class="chart-line" :d="chartLinePath" aria-hidden="true"></path>
+                          <g v-for="point in chartPoints" :key="point.key" aria-hidden="true">
+                            <line v-if="selectedChartPointKey === point.key" class="chart-crosshair" :x1="point.x" :x2="point.x" y1="24" y2="208"></line>
+                            <circle :class="{ selected: selectedChartPointKey === point.key }" :cx="point.x" :cy="point.y" r="5"></circle>
+                          </g>
+                        </svg>
+                        <div class="chart-point-list" aria-label="Forecast chart values">
+                          <button v-for="point in chartPoints" :key="`button-${point.key}`" type="button" :class="{ selected: selectedChartPointKey === point.key }" :aria-pressed="selectedChartPointKey === point.key" @pointerenter="selectChartPoint(point.key)" @pointerleave="resetChartPointSelection" @focus="selectChartPoint(point.key)" @blur="resetChartPointSelection" @click="selectChartPoint(point.key)">
+                            <span>{{ formatForecastTime(point.interval.timestamp, true) }}</span>
+                            <strong>{{ formatMetricValue(point.value) }}</strong>
+                            <small>{{ weatherSymbol(point.interval.condition.name) }} {{ titleCase(point.interval.condition.description) }}</small>
+                          </button>
+                        </div>
+                      </div>
+                      <p v-else class="chart-empty">Three-hour data is unavailable for this day.</p>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </section>
 
         <div class="dashboard-grid">
-          <section class="panel packing-panel" aria-labelledby="packing-title">
+          <section id="packing" class="panel packing-panel" aria-labelledby="packing-title">
             <div class="section-heading">
               <div><p class="section-kicker">Pack with confidence</p><h2 id="packing-title">Packing guide</h2></div><span class="panel-icon" aria-hidden="true">◒</span>
             </div>
@@ -147,6 +203,10 @@
               <div class="aqi-orb" :class="severityClass(result.airQuality.current.aqiClassification)"><strong>{{ result.airQuality.current.aqi }}</strong><span>AQI</span></div>
               <div><span>Current conditions</span><strong>{{ result.airQuality.current.aqiClassification }}</strong><p>Observed {{ formatLocalDateTime(result.airQuality.current.observedAt) }}</p></div>
             </div>
+            <details class="current-pollutants">
+              <summary>Current pollutant concentrations</summary>
+              <dl><div v-for="(value, pollutant) in result.airQuality.current.components" :key="pollutant"><dt>{{ pollutantName(pollutant) }}</dt><dd>{{ formatNumber(value.concentration) }} {{ value.unit }}</dd></div></dl>
+            </details>
             <div class="warning-heading"><h3>Forecast pollutant watch</h3><span>{{ result.airQuality.forecast.warnings.length }} elevated</span></div>
             <div v-if="result.airQuality.forecast.warnings.length" class="warning-list">
               <article v-for="warning in result.airQuality.forecast.warnings" :key="warning.pollutant" class="pollutant-warning">
@@ -180,7 +240,7 @@
               <p class="field-help">Select one or more experiences. You can change these later and regenerate.</p>
 
               <div v-if="activitiesLoading" class="planner-loading compact" role="status">
-                <span class="spinner dark" aria-hidden="true"></span>
+                <span class="spinner contrast" aria-hidden="true"></span>
                 <span>Loading activity choices…</span>
               </div>
               <div v-else-if="activitiesError" class="planner-notice planner-error" role="alert">
@@ -242,7 +302,7 @@
           </div>
 
           <div v-if="itineraryLoading" class="planner-loading" role="status">
-            <span class="spinner dark" aria-hidden="true"></span>
+            <span class="spinner contrast" aria-hidden="true"></span>
             <div><strong>Finding the best days for your activities…</strong><p>Atmos is comparing each activity with the three-day forecast.</p></div>
           </div>
           <div v-else-if="itinerary" class="itinerary-results" :class="{ outdated: itineraryOutdated }">

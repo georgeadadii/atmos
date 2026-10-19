@@ -10,6 +10,12 @@ let latestTravelRequestId = 0;
 let activeItineraryController = null;
 let latestItineraryRequestId = 0;
 
+const FORECAST_METRICS = [
+  { id: "temperature", label: "Temperature", field: "temperature", unit: "°C" },
+  { id: "rainfall", label: "Rainfall", field: "rainfall", unit: "mm" },
+  { id: "wind", label: "Wind speed", field: "windSpeedKmh", unit: "km/h" },
+];
+
 const FRIENDLY_ERRORS = {
   INVALID_CITY: "Enter a city name, optionally followed by a country code such as Dublin,IE.",
   CITY_NOT_FOUND: "We couldn’t find that destination. Check the spelling or add a two-letter country code.",
@@ -57,16 +63,15 @@ createApp({
       expandedForecastDate: null,
       selectedForecastMetric: "temperature",
       selectedChartPointKey: null,
-      chartWidths: {},
+      chartPointerActive: false,
       forecastMetrics: FORECAST_METRICS,
-      theme: "light",
     };
   },
   computed: {
     forecastPeriod() {
       const days = this.result?.forecast?.days ?? [];
       if (!days.length) return "Not available";
-      return `${this.formatCompactDate(days[0].date)} — ${this.formatCompactDate(days.at(-1).date)}`;
+      return `${this.formatCompactDate(days[0].date)} to ${this.formatCompactDate(days.at(-1).date)}`;
     },
     weatherOverview() {
       const conditions = (this.result?.forecast?.days ?? []).map(
@@ -104,6 +109,68 @@ createApp({
       return [destination.name, destination.state, destination.country]
         .filter(Boolean).join(", ");
     },
+    expandedIntervals() {
+      if (!this.expandedForecastDate) return [];
+      return this.result?.forecast?.intervalsByDate?.[this.expandedForecastDate] ?? [];
+    },
+    selectedMetric() {
+      return this.forecastMetrics.find(
+        (metric) => metric.id === this.selectedForecastMetric,
+      ) ?? this.forecastMetrics[0];
+    },
+    chartRange() {
+      const values = this.expandedIntervals
+        .map((interval) => interval[this.selectedMetric.field])
+        .filter(Number.isFinite);
+      if (!values.length) return { minimum: 0, maximum: 1 };
+      const rawMinimum = Math.min(...values);
+      const rawMaximum = Math.max(...values);
+      const padding = rawMinimum === rawMaximum
+        ? Math.max(Math.abs(rawMinimum) * 0.12, 1)
+        : (rawMaximum - rawMinimum) * 0.14;
+      return {
+        minimum: Math.max(this.selectedForecastMetric === "rainfall" ? 0 : -Infinity, rawMinimum - padding),
+        maximum: rawMaximum + padding,
+      };
+    },
+    chartPoints() {
+      const intervals = this.expandedIntervals;
+      const { minimum, maximum } = this.chartRange;
+      const range = maximum - minimum || 1;
+      return intervals.map((interval, index) => {
+        const value = interval[this.selectedMetric.field];
+        return {
+          key: String(interval.timestamp),
+          interval,
+          value,
+          x: intervals.length === 1 ? 394 : 52 + (684 * index) / (intervals.length - 1),
+          y: 24 + ((maximum - value) / range) * 184,
+        };
+      }).filter((point) => Number.isFinite(point.value));
+    },
+    chartLinePath() {
+      return this.chartPoints.map(
+        (point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+      ).join(" ");
+    },
+    chartAreaPath() {
+      if (!this.chartPoints.length) return "";
+      const first = this.chartPoints[0];
+      const last = this.chartPoints.at(-1);
+      return `${this.chartLinePath} L ${last.x} 208 L ${first.x} 208 Z`;
+    },
+    chartTicks() {
+      const { minimum, maximum } = this.chartRange;
+      return Array.from({ length: 4 }, (_, index) => ({
+        y: 24 + (184 * index) / 3,
+        value: maximum - ((maximum - minimum) * index) / 3,
+      }));
+    },
+    selectedPoint() {
+      return this.expandedIntervals.find(
+        (interval) => String(interval.timestamp) === this.selectedChartPointKey,
+      ) ?? null;
+    },
   },
   watch: {
     selectedActivities() {
@@ -114,20 +181,9 @@ createApp({
     },
   },
   mounted() {
-    const savedTheme = window.localStorage.getItem("atmos-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    this.theme = savedTheme === "dark" || savedTheme === "light"
-      ? savedTheme
-      : prefersDark ? "dark" : "light";
-    document.documentElement.dataset.theme = this.theme;
     this.loadActivities();
   },
   methods: {
-    toggleTheme() {
-      this.theme = this.theme === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = this.theme;
-      window.localStorage.setItem("atmos-theme", this.theme);
-    },
     search() {
       return this.loadDestination(this.cityQuery);
     },
@@ -150,6 +206,9 @@ createApp({
       this.itineraryError = "";
       this.itineraryOutdated = false;
       this.resolvedDestinationQuery = "";
+      this.expandedForecastDate = null;
+      this.selectedChartPointKey = null;
+      this.chartPointerActive = false;
     },
     async loadDestination(query, selectedCandidate = null) {
       const normalizedQuery = query.trim();
@@ -310,6 +369,9 @@ createApp({
         Number.isFinite(payload?.destination?.latitude) &&
         Number.isFinite(payload?.destination?.longitude) &&
         Array.isArray(payload?.forecast?.days) && payload.forecast.days.length === 3 &&
+        payload?.forecast?.intervalsByDate &&
+        payload.forecast.days.every((day) =>
+          Array.isArray(payload.forecast.intervalsByDate[day.date])) &&
         payload?.packing?.umbrella && payload?.packing?.temperature &&
         payload?.airQuality?.current &&
         Array.isArray(payload?.airQuality?.forecast?.maxima) &&
@@ -342,6 +404,65 @@ createApp({
       if (score >= 40) return "suitability-moderate";
       return "suitability-limited";
     },
+    toggleForecastDay(date) {
+      this.expandedForecastDate = this.expandedForecastDate === date ? null : date;
+      this.chartPointerActive = false;
+      this.selectedChartPointKey = this.expandedForecastDate
+        ? this.defaultChartPointKey(date)
+        : null;
+    },
+    defaultChartPointKey(date = this.expandedForecastDate) {
+      const intervals = this.result?.forecast?.intervalsByDate?.[date] ?? [];
+      if (!intervals.length) return null;
+      const today = this.result?.forecast?.days?.[0]?.date;
+      if (date !== today) return String(intervals[0].timestamp);
+      const now = Date.now() / 1000;
+      const nearest = intervals.reduce((closest, interval) =>
+        Math.abs(interval.timestamp - now) < Math.abs(closest.timestamp - now)
+          ? interval
+          : closest,
+      );
+      return String(nearest.timestamp);
+    },
+    selectChartPoint(key) {
+      this.chartPointerActive = true;
+      this.selectedChartPointKey = key;
+    },
+    selectChartPointFromPointer(event) {
+      if (!this.chartPoints.length) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const viewBoxX = ((event.clientX - bounds.left) / bounds.width) * 760;
+      const plotX = Math.min(736, Math.max(52, viewBoxX));
+      const nearest = this.chartPoints.reduce((closest, point) =>
+        Math.abs(point.x - plotX) < Math.abs(closest.x - plotX)
+          ? point
+          : closest,
+      );
+      this.selectChartPoint(nearest.key);
+    },
+    resetChartPointSelection() {
+      this.chartPointerActive = false;
+      this.selectedChartPointKey = this.defaultChartPointKey();
+    },
+    chartStatusText() {
+      if (!this.selectedPoint) return "No forecast point is available.";
+      const condition = this.titleCase(this.selectedPoint.condition.description);
+      const today = this.result?.forecast?.days?.[0]?.date;
+      if (this.expandedForecastDate === today && !this.chartPointerActive) {
+        return `Now ${this.formatCurrentDestinationTime()} · nearest forecast ${this.formatForecastTime(this.selectedPoint.timestamp, true)} · ${condition}`;
+      }
+      return `${this.formatForecastTime(this.selectedPoint.timestamp)} · ${condition}`;
+    },
+    formatCurrentDestinationTime() {
+      const offset = this.result?.forecast?.timezoneOffsetSeconds ?? 0;
+      const date = new Date(Date.now() + offset * 1000);
+      return new Intl.DateTimeFormat("en-IE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZone: "UTC",
+      }).format(date);
+    },
     formatDay(date) {
       return new Intl.DateTimeFormat("en-IE", { weekday: "long", timeZone: "UTC" })
         .format(new Date(`${date}T00:00:00Z`));
@@ -361,6 +482,29 @@ createApp({
       const offset = value.slice(19) || "+00:00";
       return `${this.formatShortDate(date)} at ${time} (UTC${offset})`;
     },
+    formatForecastTime(timestamp, timeOnly = false) {
+      if (!Number.isFinite(timestamp)) return "Time unavailable";
+      const offset = this.result?.forecast?.timezoneOffsetSeconds ?? 0;
+      const date = new Date((timestamp + offset) * 1000);
+      const time = new Intl.DateTimeFormat("en-IE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZone: "UTC",
+      }).format(date);
+      if (timeOnly) return time;
+      const day = new Intl.DateTimeFormat("en-IE", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      }).format(date);
+      return `${day} at ${time}`;
+    },
+    formatMetricValue(value) {
+      if (!Number.isFinite(value)) return "Unavailable";
+      return `${this.formatNumber(value)} ${this.selectedMetric.unit}`;
+    },
     formatNumber(value) {
       return new Intl.NumberFormat("en-IE", { maximumFractionDigits: 1 }).format(value);
     },
@@ -374,6 +518,19 @@ createApp({
     },
     severityClass(classification) {
       return `severity-${String(classification).toLowerCase().replaceAll(" ", "-")}`;
+    },
+    pollutantName(key) {
+      const names = {
+        co: "Carbon monoxide (CO)",
+        no: "Nitrogen monoxide (NO)",
+        no2: "Nitrogen dioxide (NO₂)",
+        o3: "Ozone (O₃)",
+        so2: "Sulphur dioxide (SO₂)",
+        pm2_5: "Fine particles (PM₂.₅)",
+        pm10: "Particles (PM₁₀)",
+        nh3: "Ammonia (NH₃)",
+      };
+      return names[key] ?? key;
     },
   },
 }).mount("#app");

@@ -59,6 +59,12 @@ test("GET /api/travel returns the documented structured response", async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(body.destination, destination);
     assert.equal(body.forecast.days.length, 3);
+    assert.deepEqual(Object.keys(body.forecast.intervalsByDate), [
+      "2026-01-10",
+      "2026-01-11",
+      "2026-01-12",
+    ]);
+    assert.equal(body.forecast.intervalsByDate["2026-01-10"].length, 2);
     assert.equal(body.packing.umbrella.recommended, true);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);
