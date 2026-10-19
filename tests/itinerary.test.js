@@ -154,6 +154,7 @@ test("POST /api/itinerary returns the optimal structured three-day itinerary", a
       activitiesPerDay: 1,
     });
     assert.equal(body.itinerary.days.length, 3);
+    assert.equal(body.itinerary.days[0].forecast.periods, undefined);
     assert.equal(body.itinerary.days[0].activities[0].id, "hiking");
     assert.equal(body.itinerary.days[1].activities[0].id, "museums");
     assert.equal(body.itinerary.days[2].activities[0].id, "beach");

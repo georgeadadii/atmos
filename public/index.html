@@ -85,17 +85,118 @@
               <caption class="sr-only">Three-day weather forecast for {{ result.destination.name }}</caption>
               <thead><tr><th scope="col">Day</th><th scope="col">Conditions</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Wind</th><th scope="col">Rain</th></tr></thead>
               <tbody>
-                <tr v-for="day in result.forecast.days" :key="day.date">
-                  <th scope="row" data-label="Day">
-                    <span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span>
-                    <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
-                  </th>
-                  <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
-                  <td data-label="Low"><strong>{{ formatNumber(day.minimumTemperatureCelsius) }}°</strong></td>
-                  <td data-label="High"><strong>{{ formatNumber(day.maximumTemperatureCelsius) }}°</strong></td>
-                  <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
-                  <td data-label="Rain">{{ formatNumber(day.totalRainfallMm) }} <small>mm</small></td>
-                </tr>
+                <template v-for="day in result.forecast.days" :key="day.date">
+                  <tr class="forecast-summary-row" :class="{ expanded: expandedForecastDate === day.date }" @click="toggleForecastDay(day.date)">
+                    <th scope="row" data-label="Day">
+                      <span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span>
+                      <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
+                      <button class="forecast-row-button" type="button" :aria-expanded="expandedForecastDate === day.date" :aria-controls="`forecast-detail-${day.date}`" @click.stop="toggleForecastDay(day.date)">
+                        <span class="sr-only">{{ expandedForecastDate === day.date ? 'Hide' : 'Show' }} detailed forecast for {{ formatDay(day.date) }}, {{ formatShortDate(day.date) }}</span>
+                        <span class="forecast-chevron" aria-hidden="true">⌄</span>
+                      </button>
+                    </th>
+                    <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
+                    <td data-label="Low"><strong>{{ formatNumber(day.minimumTemperatureCelsius) }}°</strong></td>
+                    <td data-label="High"><strong>{{ formatNumber(day.maximumTemperatureCelsius) }}°</strong></td>
+                    <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
+                    <td data-label="Rain">{{ formatNumber(day.totalRainfallMm) }} <small>mm</small></td>
+                  </tr>
+                  <tr v-if="expandedForecastDate === day.date" :id="`forecast-detail-${day.date}`" class="forecast-detail-row">
+                    <td colspan="6">
+                      <div class="forecast-detail-content">
+                        <div class="detail-heading">
+                          <div>
+                            <p class="section-kicker">Three-hour outlook</p>
+                            <h3>{{ formatDay(day.date) }}, {{ formatShortDate(day.date) }}</h3>
+                          </div>
+                          <div class="metric-control">
+                            <label :for="`forecast-metric-${day.date}`">Chart metric</label>
+                            <select :id="`forecast-metric-${day.date}`" v-model="selectedForecastMetric" @change="changeForecastMetric">
+                              <option v-for="metric in forecastMetrics" :key="metric.key" :value="metric.key">{{ metric.label }}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <p v-if="day.partialCoverage" class="partial-explanation">Only the available forecast periods are shown for this day. Past or missing periods are not estimated.</p>
+
+                        <div :ref="(element) => setChartContainer(day.date, element)" class="weather-chart-panel">
+                          <div class="chart-heading">
+                            <div>
+                              <span>{{ weatherChart.metric.label }}</span>
+                              <strong>{{ weatherChart.metric.unit }}</strong>
+                            </div>
+                            <div v-if="weatherChart.series.length > 1" class="chart-legend" aria-label="Chart legend">
+                              <span v-for="series in weatherChart.series" :key="series.key" :class="{ secondary: series.key === 'feels-like' || series.key === 'gusts' }"><i aria-hidden="true"></i>{{ series.label }}</span>
+                            </div>
+                          </div>
+
+                          <figure v-if="weatherChart.available" class="weather-chart">
+                            <figcaption class="sr-only">{{ weatherChart.metric.label }} throughout {{ formatDay(day.date) }} at destination-local three-hour forecast times.</figcaption>
+                            <svg width="100%" :height="weatherChart.height" v-bind="{ viewBox: `0 0 ${weatherChart.width} ${weatherChart.height}` }" role="img" :aria-labelledby="`chart-title-${day.date} chart-description-${day.date}`">
+                              <title :id="`chart-title-${day.date}`">{{ weatherChart.metric.label }} for {{ formatDay(day.date) }}</title>
+                              <desc :id="`chart-description-${day.date}`">Interactive chart using destination-local times. Focus a data point to inspect its value. The chart data table below provides an equivalent.</desc>
+                              <g v-for="tick in weatherChart.yTicks" :key="tick.value">
+                                <line class="chart-grid-line" :x1="weatherChart.plot.left" :x2="weatherChart.width - weatherChart.plot.right" :y1="tick.y" :y2="tick.y"></line>
+                                <text class="chart-axis-label" :x="weatherChart.plot.left - 8" :y="tick.y + 4" text-anchor="end">{{ formatNumber(tick.value) }}</text>
+                              </g>
+                              <g v-for="series in weatherChart.series" :key="series.key" :class="['chart-series', { secondary: series.key === 'feels-like' || series.key === 'gusts' }]">
+                                <template v-if="weatherChart.metric.presentation === 'bar'">
+                                  <rect v-for="point in series.points" :key="point.key" class="chart-bar chart-data-point" :class="{ selected: isSelectedChartPoint(point) }" :x="point.x - weatherChart.barWidth / 2" :y="point.y" :width="weatherChart.barWidth" :height="Math.max(2, weatherChart.baselineY - point.y)" rx="3" tabindex="0" role="button" :aria-label="`${point.time}, ${point.seriesLabel}, ${formatChartValue(point.value, point.unit)}`" @focus="selectChartPoint(point)" @click="selectChartPoint(point)" @keydown.enter.prevent="selectChartPoint(point)" @keydown.space.prevent="selectChartPoint(point)">
+                                    <title>{{ point.time }}: {{ point.seriesLabel }}, {{ formatChartValue(point.value, point.unit) }}</title>
+                                  </rect>
+                                </template>
+                                <template v-else>
+                                  <polyline v-for="segment in series.segments" :key="segment" class="chart-line" :points="segment"></polyline>
+                                  <circle v-for="point in series.points" :key="point.key" class="chart-point chart-data-point" :class="{ selected: isSelectedChartPoint(point) }" :cx="point.x" :cy="point.y" r="5" tabindex="0" role="button" :aria-label="`${point.time}, ${point.seriesLabel}, ${formatChartValue(point.value, point.unit)}`" @focus="selectChartPoint(point)" @click="selectChartPoint(point)" @keydown.enter.prevent="selectChartPoint(point)" @keydown.space.prevent="selectChartPoint(point)">
+                                    <title>{{ point.time }}: {{ point.seriesLabel }}, {{ formatChartValue(point.value, point.unit) }}</title>
+                                  </circle>
+                                </template>
+                              </g>
+                              <text v-for="tick in weatherChart.xTicks" :key="tick.index" class="chart-axis-label" :x="tick.x" :y="weatherChart.height - 22" text-anchor="middle">{{ tick.time }}</text>
+                              <text class="chart-axis-title" x="13" :y="weatherChart.height / 2" text-anchor="middle" :transform="`rotate(-90 13 ${weatherChart.height / 2})`">{{ weatherChart.metric.unit }}</text>
+                              <text class="chart-axis-title" :x="weatherChart.width / 2" :y="weatherChart.height - 3" text-anchor="middle">Destination-local time</text>
+                            </svg>
+                          </figure>
+                          <div v-else class="chart-unavailable" role="status">{{ weatherChart.metric.label }} is not available for the forecast periods shown.</div>
+
+                          <div class="chart-inspector" aria-live="polite">
+                            <template v-if="selectedChartPoint">
+                              <span>Selected forecast time</span>
+                              <strong>{{ selectedChartPoint.time }}</strong>
+                              <p>{{ selectedChartPoint.seriesLabel }}: {{ formatChartValue(selectedChartPoint.value, selectedChartPoint.unit) }}</p>
+                            </template>
+                            <p v-else>Select or focus a chart point to inspect its value.</p>
+                          </div>
+                        </div>
+
+                        <section class="daily-overview" :aria-labelledby="`daily-overview-${day.date}`">
+                          <div class="overview-heading">
+                            <div><p class="section-kicker">Available-period summary</p><h4 :id="`daily-overview-${day.date}`">Daily overview</h4></div>
+                            <span>{{ day.periods.length }} of 8 possible periods</span>
+                          </div>
+                          <dl class="overview-card-grid">
+                            <div v-for="item in dailyOverview" :key="item.key" class="overview-card">
+                              <dt>{{ item.label }}</dt>
+                              <dd>{{ formatOverviewValue(item) }}</dd>
+                            </div>
+                          </dl>
+                          <p v-if="day.partialCoverage" class="overview-note">These figures summarise only the available forecast periods.</p>
+                        </section>
+
+                        <details class="chart-data-details">
+                          <summary>View chart data</summary>
+                          <div class="chart-data-table-wrap">
+                            <table>
+                              <caption>Three-hour {{ weatherChart.metric.label.toLowerCase() }} values for {{ formatDay(day.date) }}</caption>
+                              <thead><tr><th scope="col">Local time</th><th v-for="series in weatherChart.series" :key="series.key" scope="col">{{ series.label }}</th></tr></thead>
+                              <tbody><tr v-for="row in chartDataRows" :key="row.time"><th scope="row">{{ row.time }}</th><td v-for="value in row.values" :key="value.key">{{ value.point ? formatChartValue(value.point.value, value.point.unit) : 'Not available' }}</td></tr></tbody>
+                            </table>
+                          </div>
+                        </details>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
