@@ -15,29 +15,46 @@
           <span class="brand-mark" aria-hidden="true"><span class="brand-sun"></span><span class="brand-cloud"></span></span>
           <span>Atmos</span>
         </a>
-        <p class="header-note">Weather-aware travel planning</p>
+        <div class="header-actions">
+          <p class="header-note">Weather-aware travel planning</p>
+          <button class="theme-toggle" type="button" :aria-pressed="theme === 'dark'" :aria-label="`Use ${theme === 'dark' ? 'light' : 'dark'} theme`" @click="toggleTheme">
+            <svg v-if="theme === 'dark'" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+            <svg v-else aria-hidden="true" viewBox="0 0 24 24"><path d="M20.4 15.1A8.5 8.5 0 0 1 8.9 3.6 8.5 8.5 0 1 0 20.4 15.1Z"></path></svg>
+            <span>{{ theme === 'dark' ? 'Light' : 'Dark' }}</span>
+          </button>
+        </div>
       </header>
 
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="eyebrow">Forecast your best trip</p>
-          <h1 id="page-title">Go prepared.<br><em>Whatever the weather.</em></h1>
-          <p class="hero-intro">A focused three-day outlook with packing guidance and air-quality insights for your next destination.</p>
+          <p class="eyebrow"><span aria-hidden="true"></span> Your trip, read through the weather</p>
+          <h1 id="page-title">Plan for the place.<br><em>Pack for the forecast.</em></h1>
+          <p class="hero-intro">One clear, three-day briefing that turns local weather into a practical itinerary, packing list, and air-quality check.</p>
+          <ul class="hero-features" aria-label="Atmos trip-planning features">
+            <li><span aria-hidden="true">01</span> Local forecast</li>
+            <li><span aria-hidden="true">02</span> Smart packing</li>
+            <li><span aria-hidden="true">03</span> Day-by-day plan</li>
+          </ul>
         </div>
 
         <form class="search-card" @submit.prevent="search" novalidate>
-          <label for="city-search">Where are you heading?</label>
-          <p id="search-hint" class="search-hint">Add a country code for a more precise result.</p>
+          <div class="search-card-heading">
+            <span class="search-step" aria-hidden="true">Start here</span>
+            <div>
+              <label for="city-search">Where are you heading?</label>
+              <p id="search-hint" class="search-hint">City and country code gives the most precise result.</p>
+            </div>
+          </div>
           <div class="search-row">
-            <span class="search-icon" aria-hidden="true">⌖</span>
+            <svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
             <input id="city-search" v-model="cityQuery" name="city" type="search" placeholder="Try Dublin,IE or Barcelona,ES" autocomplete="off" aria-describedby="search-hint" :aria-invalid="Boolean(error)" :disabled="loading">
             <button class="search-button" type="submit" :disabled="loading">
               <span v-if="loading" class="button-loading"><span class="spinner" aria-hidden="true"></span>Searching</span>
-              <span v-else>Explore forecast <span aria-hidden="true">→</span></span>
+              <span v-else>Build my briefing <span class="button-arrow" aria-hidden="true">→</span></span>
             </button>
           </div>
           <div class="quick-searches" aria-label="Popular destinations">
-            <span>Popular:</span>
+            <span>Try a destination</span>
             <button v-for="city in popularCities" :key="city" type="button" class="text-button" :disabled="loading" @click="searchFor(city)">{{ city.split(',')[0] }}</button>
           </div>
         </form>
@@ -324,9 +341,16 @@
         </details>
       </div>
 
-      <section v-else-if="!loading && !candidates.length" class="empty-state" aria-label="Getting started">
-        <div class="empty-visual" aria-hidden="true"><span class="empty-sun"></span><span class="empty-cloud">☁</span><span class="empty-pin">⌖</span></div>
-        <p>Search a destination to reveal its three-day travel outlook.</p>
+      <section v-else-if="!loading && !candidates.length" class="empty-state" aria-labelledby="getting-started-title">
+        <div class="empty-state-intro">
+          <p class="section-kicker">One search. A useful plan.</p>
+          <h2 id="getting-started-title">From outlook to out-the-door.</h2>
+        </div>
+        <ol class="journey-steps">
+          <li><span>01</span><div><strong>Read the days</strong><p>Compare local conditions and inspect every available three-hour period.</p></div></li>
+          <li><span>02</span><div><strong>Pack with intent</strong><p>Turn rain and temperature changes into practical packing guidance.</p></div></li>
+          <li><span>03</span><div><strong>Place the moments</strong><p>Fit your chosen activities to the days when they make the most sense.</p></div></li>
+        </ol>
       </section>
 
       <footer>

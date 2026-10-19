@@ -54,6 +54,12 @@ createApp({
       itineraryError: "",
       itineraryOutdated: false,
       maximumSelectedActivities: MAX_SELECTED_ACTIVITIES,
+      expandedForecastDate: null,
+      selectedForecastMetric: "temperature",
+      selectedChartPointKey: null,
+      chartWidths: {},
+      forecastMetrics: FORECAST_METRICS,
+      theme: "light",
     };
   },
   computed: {
@@ -108,9 +114,20 @@ createApp({
     },
   },
   mounted() {
+    const savedTheme = window.localStorage.getItem("atmos-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    this.theme = savedTheme === "dark" || savedTheme === "light"
+      ? savedTheme
+      : prefersDark ? "dark" : "light";
+    document.documentElement.dataset.theme = this.theme;
     this.loadActivities();
   },
   methods: {
+    toggleTheme() {
+      this.theme = this.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = this.theme;
+      window.localStorage.setItem("atmos-theme", this.theme);
+    },
     search() {
       return this.loadDestination(this.cityQuery);
     },
@@ -266,7 +283,7 @@ createApp({
           this.itineraryError = code === "AMBIGUOUS_CITY"
             ? "The destination could not be confirmed. Search for it again and choose a specific match."
             : FRIENDLY_ERRORS[code] ?? payload?.error?.message ??
-              "The itinerary could not be generated. Please try again.";
+            "The itinerary could not be generated. Please try again.";
           return;
         }
         if (!isItineraryResponse(payload)) throw new Error("INVALID_RESPONSE");
