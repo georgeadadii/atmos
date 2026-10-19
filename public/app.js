@@ -4,12 +4,18 @@ import {
   MAX_SELECTED_ACTIVITIES,
   selectionValidation,
 } from "./itineraryHelpers.js";
-import { createTemperatureChart } from "./forecastChart.js";
+import {
+  createDailyOverview,
+  createWeatherChart,
+  FORECAST_METRICS,
+  nextExpandedDate,
+} from "./forecastChart.js";
 
 let activeTravelController = null;
 let latestTravelRequestId = 0;
 let activeItineraryController = null;
 let latestItineraryRequestId = 0;
+const chartObservers = new Map();
 
 const FRIENDLY_ERRORS = {
   INVALID_CITY: "Enter a city name, optionally followed by a country code such as Dublin,IE.",
@@ -55,6 +61,11 @@ createApp({
       itineraryError: "",
       itineraryOutdated: false,
       maximumSelectedActivities: MAX_SELECTED_ACTIVITIES,
+      expandedForecastDate: null,
+      selectedForecastMetric: "temperature",
+      selectedChartPointKey: null,
+      chartWidths: {},
+      forecastMetrics: FORECAST_METRICS,
     };
   },
   computed: {
@@ -69,13 +80,42 @@ createApp({
       );
       return [...new Set(conditions.map(this.titleCase))].join(", ");
     },
-    temperatureCharts() {
-      return Object.fromEntries(
-        (this.result?.forecast?.days ?? []).map((day) => [
-          day.date,
-          createTemperatureChart(day.periods),
-        ]),
+    expandedForecastDay() {
+      return (this.result?.forecast?.days ?? []).find(
+        (day) => day.date === this.expandedForecastDate,
+      ) ?? null;
+    },
+    weatherChart() {
+      const day = this.expandedForecastDay;
+      if (!day) return null;
+      return createWeatherChart(
+        day.periods,
+        this.selectedForecastMetric,
+        { width: this.chartWidths[day.date] ?? 640 },
       );
+    },
+    dailyOverview() {
+      return this.expandedForecastDay
+        ? createDailyOverview(this.expandedForecastDay)
+        : [];
+    },
+    selectedChartPoint() {
+      return this.weatherChart?.points.find(
+        (point) => point.key === this.selectedChartPointKey,
+      ) ?? null;
+    },
+    chartDataRows() {
+      const chart = this.weatherChart;
+      const periods = this.expandedForecastDay?.periods ?? [];
+      if (!chart) return [];
+      return periods.map((period, index) => ({
+        time: period.localTime,
+        values: chart.series.map((series) => ({
+          key: series.key,
+          label: series.label,
+          point: series.points.find((point) => point.index === index) ?? null,
+        })),
+      }));
     },
     selectedActivityCount() {
       return this.selectedActivities.length;
@@ -119,6 +159,9 @@ createApp({
   mounted() {
     this.loadActivities();
   },
+  beforeUnmount() {
+    this.clearChartObservers();
+  },
   methods: {
     search() {
       return this.loadDestination(this.cityQuery);
@@ -143,9 +186,21 @@ createApp({
       this.itineraryOutdated = false;
       this.resolvedDestinationQuery = "";
     },
+    clearChartObservers() {
+      for (const entry of chartObservers.values()) entry.observer?.disconnect();
+      chartObservers.clear();
+    },
+    resetForecastDetails() {
+      this.clearChartObservers();
+      this.expandedForecastDate = null;
+      this.selectedForecastMetric = "temperature";
+      this.selectedChartPointKey = null;
+      this.chartWidths = {};
+    },
     async loadDestination(query, selectedCandidate = null) {
       const normalizedQuery = query.trim();
       this.invalidateItineraryForDestination();
+      this.resetForecastDetails();
       if (!normalizedQuery) {
         this.error = FRIENDLY_ERRORS.INVALID_CITY;
         this.result = null;
@@ -295,6 +350,63 @@ createApp({
       } catch {
         throw new Error("INVALID_RESPONSE");
       }
+    },
+    toggleForecastDay(date) {
+      this.expandedForecastDate = nextExpandedDate(
+        this.expandedForecastDate,
+        date,
+      );
+      this.selectedChartPointKey = null;
+      if (this.expandedForecastDate) {
+        this.$nextTick(() => this.selectFirstChartPoint());
+      }
+    },
+    setChartContainer(date, element) {
+      const current = chartObservers.get(date);
+      if (!element) {
+        current?.observer?.disconnect();
+        chartObservers.delete(date);
+        return;
+      }
+      if (current?.element === element) return;
+      current?.observer?.disconnect();
+
+      const updateWidth = (width) => {
+        if (!Number.isFinite(width) || width <= 0) return;
+        const roundedWidth = Math.round(width);
+        if (this.chartWidths[date] === roundedWidth) return;
+        this.chartWidths = { ...this.chartWidths, [date]: roundedWidth };
+      };
+      updateWidth(element.getBoundingClientRect().width);
+      const observer = typeof ResizeObserver === "function"
+        ? new ResizeObserver((entries) => {
+            updateWidth(entries[0]?.contentRect?.width);
+          })
+        : null;
+      observer?.observe(element);
+      chartObservers.set(date, { element, observer });
+    },
+    changeForecastMetric() {
+      this.selectedChartPointKey = null;
+      this.$nextTick(() => this.selectFirstChartPoint());
+    },
+    selectFirstChartPoint() {
+      this.selectedChartPointKey = this.weatherChart?.points[0]?.key ?? null;
+    },
+    selectChartPoint(point) {
+      this.selectedChartPointKey = point.key;
+    },
+    isSelectedChartPoint(point) {
+      return point.key === this.selectedChartPointKey;
+    },
+    formatChartValue(value, unit = this.weatherChart?.metric.unit) {
+      return Number.isFinite(value)
+        ? `${this.formatNumber(value)} ${unit}`
+        : "Not available";
+    },
+    formatOverviewValue(item) {
+      if (item.value === null) return "Not available";
+      return `${item.value} ${item.unit}`;
     },
     isTravelResponse(payload) {
       return Boolean(
