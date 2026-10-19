@@ -13,7 +13,7 @@
       <a class="skip-link" href="#city-search">Skip to destination search</a>
       <header class="site-header">
         <a class="brand" href="#" aria-label="Atmos home">
-          <span class="brand-mark" aria-hidden="true"><span class="brand-sun"></span><span class="brand-cloud"></span></span>
+          <span class="brand-mark" aria-hidden="true"><atmos-icon name="cloud-sun" :size="30"></atmos-icon></span>
           <span>Atmos</span>
         </a>
         <nav class="site-nav" aria-label="Page sections">
@@ -44,11 +44,11 @@
             </div>
           </div>
           <div class="search-row">
-            <svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+            <atmos-icon class="search-icon" name="search" :size="20"></atmos-icon>
             <input id="city-search" v-model="cityQuery" name="city" type="search" placeholder="Try Dublin,IE or Barcelona,ES" autocomplete="off" aria-describedby="search-hint" :aria-invalid="Boolean(error)" :disabled="loading">
             <button class="search-button" type="submit" :disabled="loading">
-              <span v-if="loading" class="button-loading"><span class="spinner" aria-hidden="true"></span>Searching</span>
-              <span v-else>Build my briefing <span class="button-arrow" aria-hidden="true">→</span></span>
+              <span v-if="loading" class="button-loading"><atmos-icon class="icon-spin" name="loader-circle" :size="16"></atmos-icon>Searching</span>
+              <span v-else>Build my briefing <atmos-icon class="button-arrow" name="arrow-right" :size="16"></atmos-icon></span>
             </button>
           </div>
           <div class="quick-searches" aria-label="Popular destinations">
@@ -61,7 +61,7 @@
       <div class="status-region" aria-live="polite" aria-atomic="true">
         <p v-if="loading" class="sr-only">Loading the destination forecast.</p>
         <div v-if="error" class="notice notice-error" role="alert">
-          <span class="notice-icon" aria-hidden="true">!</span>
+          <span class="notice-icon"><atmos-icon name="circle-alert" :size="18"></atmos-icon></span>
           <div><strong>We couldn’t load that forecast</strong><p>{{ error }}</p></div>
         </div>
       </div>
@@ -70,9 +70,9 @@
         <div><p class="section-kicker">Multiple matches</p><h2 id="candidate-title">Which destination did you mean?</h2><p>Choose a location to get the right local forecast.</p></div>
         <div class="candidate-grid">
           <button v-for="candidate in candidates" :key="`${candidate.latitude}-${candidate.longitude}`" type="button" class="candidate-button" :disabled="loading" @click="selectCandidate(candidate)">
-            <span class="candidate-pin" aria-hidden="true">⌖</span>
+            <span class="candidate-pin"><atmos-icon name="map-pin" :size="20"></atmos-icon></span>
             <span><strong>{{ candidate.name }}</strong><small>{{ candidateLocation(candidate) }}</small></span>
-            <span aria-hidden="true">→</span>
+            <atmos-icon name="arrow-right" :size="18"></atmos-icon>
           </button>
         </div>
       </section>
@@ -104,11 +104,11 @@
                   <th scope="row" data-label="Day">
                     <button class="forecast-toggle" type="button" :aria-expanded="expandedForecastDate === day.date" :aria-controls="`forecast-detail-${day.date}`" @click="toggleForecastDay(day.date)">
                       <span><span class="day-name">{{ formatDay(day.date) }}</span><span class="day-date">{{ formatShortDate(day.date) }}</span></span>
-                      <span class="toggle-icon" aria-hidden="true">⌄</span>
+                      <span class="toggle-icon"><atmos-icon name="chevron-down" :size="16"></atmos-icon></span>
                     </button>
                     <span v-if="day.partialCoverage" class="partial-badge">Partial forecast</span>
                   </th>
-                  <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.representativeCondition.name) }}</span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
+                  <td data-label="Conditions"><div class="condition-cell"><span class="weather-symbol"><atmos-icon :name="weatherIcon(day.representativeCondition)" :size="24"></atmos-icon></span><span>{{ titleCase(day.representativeCondition.description) }}</span></div></td>
                   <td data-label="Low"><strong>{{ formatNumber(day.minimumTemperatureCelsius) }}°</strong></td>
                   <td data-label="High"><strong>{{ formatNumber(day.maximumTemperatureCelsius) }}°</strong></td>
                   <td data-label="Wind">{{ formatNumber(day.averageWindSpeedKmh) }} <small>km/h</small></td>
@@ -161,7 +161,7 @@
                           <button v-for="point in chartPoints" :key="`button-${point.key}`" type="button" :class="{ selected: selectedChartPointKey === point.key }" :aria-pressed="selectedChartPointKey === point.key" @pointerenter="selectChartPoint(point.key)" @pointerleave="resetChartPointSelection" @focus="selectChartPoint(point.key)" @blur="resetChartPointSelection" @click="selectChartPoint(point.key)">
                             <span>{{ formatForecastTime(point.interval.timestamp, true) }}</span>
                             <strong>{{ formatMetricValue(point.value) }}</strong>
-                            <small>{{ weatherSymbol(point.interval.condition.name) }} {{ titleCase(point.interval.condition.description) }}</small>
+                            <small class="chart-condition"><atmos-icon :name="weatherIcon(point.interval.condition)" :size="14"></atmos-icon> {{ titleCase(point.interval.condition.description) }}</small>
                           </button>
                         </div>
                       </div>
@@ -177,10 +177,10 @@
         <div class="dashboard-grid">
           <section id="packing" class="panel packing-panel" aria-labelledby="packing-title">
             <div class="section-heading">
-              <div><p class="section-kicker">Pack with confidence</p><h2 id="packing-title">Packing guide</h2></div><span class="panel-icon" aria-hidden="true">◒</span>
+              <div><p class="section-kicker">Pack with confidence</p><h2 id="packing-title">Packing guide</h2></div><span class="panel-icon"><atmos-icon name="backpack" :size="24"></atmos-icon></span>
             </div>
             <div class="recommendation-feature" :class="{ recommended: result.packing.umbrella.recommended }">
-              <span class="recommendation-icon" aria-hidden="true">{{ result.packing.umbrella.recommended ? '☂' : '✓' }}</span>
+              <span class="recommendation-icon"><atmos-icon :name="result.packing.umbrella.recommended ? 'umbrella' : 'umbrella-off'" :size="24"></atmos-icon></span>
               <div><span>Umbrella</span><strong>{{ result.packing.umbrella.recommended ? 'Bring one along' : 'Not needed' }}</strong><p>{{ result.packing.umbrella.reason }}</p></div>
             </div>
             <div class="temperature-summary">
@@ -191,34 +191,34 @@
               </div>
             </div>
             <ul class="advice-list">
-              <li v-for="item in result.packing.temperature.advice" :key="item.category"><span aria-hidden="true">✓</span><p><strong>{{ item.category }}:</strong> {{ item.message }}</p></li>
+              <li v-for="item in result.packing.temperature.advice" :key="item.category"><span><atmos-icon :name="packingIcon(item.category)" :size="15"></atmos-icon></span><p><strong>{{ item.category }}:</strong> {{ item.message }}</p></li>
             </ul>
           </section>
 
           <section class="panel air-panel" aria-labelledby="air-title">
             <div class="section-heading">
-              <div><p class="section-kicker">Breathe easy</p><h2 id="air-title">Air quality</h2></div><span class="panel-icon air-lines" aria-hidden="true">≋</span>
+              <div><p class="section-kicker">Breathe easy</p><h2 id="air-title">Air quality</h2></div><span class="panel-icon"><atmos-icon name="wind" :size="24"></atmos-icon></span>
             </div>
             <div class="aqi-summary">
               <div class="aqi-orb" :class="severityClass(result.airQuality.current.aqiClassification)"><strong>{{ result.airQuality.current.aqi }}</strong><span>AQI</span></div>
               <div><span>Current conditions</span><strong>{{ result.airQuality.current.aqiClassification }}</strong><p>Observed {{ formatLocalDateTime(result.airQuality.current.observedAt) }}</p></div>
             </div>
             <details class="current-pollutants">
-              <summary>Current pollutant concentrations</summary>
+              <summary><span>Current pollutant concentrations</span><atmos-icon name="chevron-down" :size="16"></atmos-icon></summary>
               <dl><div v-for="(value, pollutant) in result.airQuality.current.components" :key="pollutant"><dt>{{ pollutantName(pollutant) }}</dt><dd>{{ formatNumber(value.concentration) }} {{ value.unit }}</dd></div></dl>
             </details>
             <div class="warning-heading"><h3>Forecast pollutant watch</h3><span>{{ result.airQuality.forecast.warnings.length }} elevated</span></div>
             <div v-if="result.airQuality.forecast.warnings.length" class="warning-list">
               <article v-for="warning in result.airQuality.forecast.warnings" :key="warning.pollutant" class="pollutant-warning">
-                <div class="warning-topline"><strong>{{ warning.name }}</strong><span :class="severityClass(warning.classification)">{{ warning.classification }}</span></div>
+                <div class="warning-topline"><strong><atmos-icon name="triangle-alert" :size="16"></atmos-icon>{{ warning.name }}</strong><span :class="severityClass(warning.classification)">{{ warning.classification }}</span></div>
                 <p class="concentration">{{ formatNumber(warning.concentration) }} <small>{{ warning.unit }}</small><span>Good below {{ formatNumber(warning.goodThreshold) }} {{ warning.unit }}</span></p>
                 <p><strong>Expected peak:</strong> {{ formatLocalDateTime(warning.expectedAt) }}</p>
                 <p class="risk-copy">{{ warning.risk }}</p>
               </article>
             </div>
-            <div v-else class="no-warnings"><span aria-hidden="true">✓</span><p><strong>No elevated pollutants in the available forecast.</strong> No classified pollutant exceeded its Good-category threshold; this does not guarantee risk-free air.</p></div>
+            <div v-else class="no-warnings"><span><atmos-icon name="check" :size="16"></atmos-icon></span><p><strong>No elevated pollutants in the available forecast.</strong> No classified pollutant exceeded its Good-category threshold; this does not guarantee risk-free air.</p></div>
             <details class="pollutant-details">
-              <summary>View all forecast pollutant maxima</summary>
+              <summary><span>View all forecast pollutant maxima</span><atmos-icon name="chevron-down" :size="16"></atmos-icon></summary>
               <ul><li v-for="pollutant in result.airQuality.forecast.maxima" :key="pollutant.pollutant"><span>{{ pollutant.name }}</span><strong>{{ formatNumber(pollutant.concentration) }} {{ pollutant.unit }}</strong><small :class="severityClass(pollutant.classification)">{{ pollutant.classification }}</small></li></ul>
             </details>
           </section>
@@ -231,7 +231,7 @@
               <h2 id="planner-title">Plan your three-day adventure</h2>
               <p>Choose what you’d like to do, and Atmos will find the most suitable days based on the forecast.</p>
             </div>
-            <span class="planner-destination"><span aria-hidden="true">⌖</span> {{ result.destination.name }}, {{ result.destination.country }}</span>
+            <span class="planner-destination"><atmos-icon name="map-pinned" :size="16"></atmos-icon> {{ result.destination.name }}, {{ result.destination.country }}</span>
           </div>
 
           <form class="planner-form" @submit.prevent="generateItinerary" novalidate>
@@ -240,18 +240,17 @@
               <p class="field-help">Select one or more experiences. You can change these later and regenerate.</p>
 
               <div v-if="activitiesLoading" class="planner-loading compact" role="status">
-                <span class="spinner contrast" aria-hidden="true"></span>
+                <atmos-icon class="icon-spin" name="loader-circle" :size="20"></atmos-icon>
                 <span>Loading activity choices…</span>
               </div>
               <div v-else-if="activitiesError" class="planner-notice planner-error" role="alert">
-                <strong>Activities unavailable</strong>
-                <p>{{ activitiesError }}</p>
+                <atmos-icon class="notice-inline-icon" name="circle-alert" :size="20"></atmos-icon><div><strong>Activities unavailable</strong><p>{{ activitiesError }}</p></div>
               </div>
               <div v-else class="activity-grid">
                 <label v-for="activity in activities" :key="activity.id" class="activity-card" :class="{ selected: selectedActivities.includes(activity.id) }">
                   <input v-model="selectedActivities" type="checkbox" :value="activity.id" :disabled="itineraryLoading || (selectedActivityCount >= maximumSelectedActivities && !selectedActivities.includes(activity.id))">
-                  <span class="activity-check" aria-hidden="true">✓</span>
-                  <span class="activity-icon" aria-hidden="true">{{ activityIcon(activity) }}</span>
+                  <span class="activity-check"><atmos-icon name="check" :size="14"></atmos-icon></span>
+                  <span class="activity-icon"><atmos-icon :name="activityIcon(activity)" :size="22"></atmos-icon></span>
                   <span class="activity-copy">
                     <strong>{{ activity.name }}</strong>
                     <small>{{ activity.description }}</small>
@@ -283,26 +282,24 @@
                 <p v-else>Atmos will arrange every selected activity once across the three days.</p>
               </div>
               <button class="generate-button" type="submit" :disabled="!canGenerateItinerary">
-                <span v-if="itineraryLoading"><span class="spinner" aria-hidden="true"></span> Finding the best days…</span>
-                <span v-else-if="itinerary">Regenerate itinerary <span aria-hidden="true">↻</span></span>
-                <span v-else>Generate my itinerary <span aria-hidden="true">→</span></span>
+                <span v-if="itineraryLoading"><atmos-icon class="icon-spin" name="loader-circle" :size="16"></atmos-icon> Finding the best days…</span>
+                <span v-else-if="itinerary">Regenerate itinerary <atmos-icon name="refresh-cw" :size="16"></atmos-icon></span>
+                <span v-else>Generate my itinerary <atmos-icon name="wand-sparkles" :size="16"></atmos-icon></span>
               </button>
             </div>
           </form>
 
           <div class="planner-status" aria-live="polite" aria-atomic="true">
             <div v-if="itineraryError" class="planner-notice planner-error" role="alert">
-              <strong>We couldn’t build that itinerary</strong>
-              <p>{{ itineraryError }}</p>
+              <atmos-icon class="notice-inline-icon" name="circle-alert" :size="20"></atmos-icon><div><strong>We couldn’t build that itinerary</strong><p>{{ itineraryError }}</p></div>
             </div>
             <div v-if="itineraryOutdated" class="planner-notice planner-outdated" role="status">
-              <strong>Your preferences have changed.</strong>
-              <p>Regenerate your itinerary to see the updated plan.</p>
+              <atmos-icon class="notice-inline-icon" name="triangle-alert" :size="20"></atmos-icon><div><strong>Your preferences have changed.</strong><p>Regenerate your itinerary to see the updated plan.</p></div>
             </div>
           </div>
 
           <div v-if="itineraryLoading" class="planner-loading" role="status">
-            <span class="spinner contrast" aria-hidden="true"></span>
+            <atmos-icon class="icon-spin" name="loader-circle" :size="22"></atmos-icon>
             <div><strong>Finding the best days for your activities…</strong><p>Atmos is comparing each activity with the three-day forecast.</p></div>
           </div>
           <div v-else-if="itinerary" class="itinerary-results" :class="{ outdated: itineraryOutdated }">
@@ -327,7 +324,7 @@
                   <p>{{ formatCompactDate(day.date) }}</p>
                 </header>
                 <div class="day-weather">
-                  <span class="weather-symbol" aria-hidden="true">{{ weatherSymbol(day.forecast.representativeCondition.name) }}</span>
+                  <span class="weather-symbol"><atmos-icon :name="weatherIcon(day.forecast.representativeCondition)" :size="20"></atmos-icon></span>
                   <div><strong>{{ titleCase(day.forecast.representativeCondition.description) }}</strong><small>{{ formatNumber(day.forecast.minimumTemperatureCelsius) }}–{{ formatNumber(day.forecast.maximumTemperatureCelsius) }}°C · {{ formatNumber(day.forecast.totalRainfallMm) }} mm rain</small></div>
                 </div>
                 <div v-if="day.activities.length" class="scheduled-list">
@@ -355,14 +352,14 @@
                           </div>
                           <address v-if="place.address">{{ place.address }}</address>
                           <div class="place-facts">
-                            <span v-if="place.rating !== undefined">★ {{ formatNumber(place.rating) }}<small v-if="place.userRatingCount !== undefined"> ({{ place.userRatingCount.toLocaleString('en-IE') }} reviews)</small></span>
+                            <span v-if="place.rating !== undefined" class="place-rating"><atmos-icon name="star" :size="13"></atmos-icon>{{ formatNumber(place.rating) }}<small v-if="place.userRatingCount !== undefined"> ({{ place.userRatingCount.toLocaleString('en-IE') }} reviews)</small></span>
                             <span v-else>Rating unavailable</span>
                             <span v-if="place.distanceKm !== undefined">≈ {{ formatNumber(place.distanceKm) }} km straight-line</span>
                             <span v-else>Distance unavailable</span>
                           </div>
-                          <a v-if="place.googleMapsUri" :href="place.googleMapsUri" target="_blank" rel="noopener noreferrer">View on Google Maps <span aria-hidden="true">↗</span></a>
+                          <a v-if="place.googleMapsUri" :href="place.googleMapsUri" target="_blank" rel="noopener noreferrer">View on Google Maps <atmos-icon name="external-link" :size="14"></atmos-icon></a>
                           <details class="rank-details">
-                            <summary>Why this rank?</summary>
+                            <summary><span>Why this rank?</span><atmos-icon name="chevron-down" :size="14"></atmos-icon></summary>
                             <dl>
                               <div><dt>Activity relevance</dt><dd>{{ place.scoreBreakdown.activityRelevance.score }}/35</dd></div>
                               <div><dt>Visitor rating</dt><dd>{{ place.scoreBreakdown.visitorRating.score }}/30</dd></div>
@@ -378,25 +375,25 @@
                   </article>
                 </div>
                 <div v-else class="empty-day">
-                  <span aria-hidden="true">○</span>
+                  <atmos-icon name="circle-minus" :size="20"></atmos-icon>
                   <p><strong>No activities scheduled for this day.</strong> Your selected activities were better suited to the other forecast days.</p>
                 </div>
               </article>
             </div>
 
             <details v-if="itinerary.limitations.length" class="itinerary-limitations">
-              <summary>How to interpret this plan</summary>
+              <summary><span>How to interpret this plan</span><atmos-icon name="chevron-down" :size="16"></atmos-icon></summary>
               <ul><li v-for="limitation in itinerary.limitations" :key="limitation">{{ limitation }}</li></ul>
             </details>
           </div>
           <div v-else class="planner-empty">
-            <span aria-hidden="true">↗</span>
+            <span><atmos-icon name="wand-sparkles" :size="18"></atmos-icon></span>
             <p><strong>Your itinerary will appear here.</strong> Select activities and generate a plan to see the recommended day for each one.</p>
           </div>
         </section>
 
         <details v-if="result.limitations.length" class="limitations">
-          <summary><span aria-hidden="true">i</span>Data notes and limitations ({{ result.limitations.length }})</summary>
+          <summary><span class="limitations-label"><span class="limitations-icon"><atmos-icon name="info" :size="15"></atmos-icon></span>Data notes and limitations ({{ result.limitations.length }})</span><atmos-icon name="chevron-down" :size="16"></atmos-icon></summary>
           <ul><li v-for="limitation in result.limitations" :key="limitation">{{ limitation }}</li></ul>
         </details>
       </div>
@@ -414,7 +411,7 @@
       </section>
 
       <footer>
-        <a class="brand footer-brand" href="#" aria-label="Atmos home"><span class="brand-mark small" aria-hidden="true"><span class="brand-sun"></span><span class="brand-cloud"></span></span><span>Atmos</span></a>
+        <a class="brand footer-brand" href="#" aria-label="Atmos home"><span class="brand-mark small" aria-hidden="true"><atmos-icon name="cloud-sun" :size="28"></atmos-icon></span><span>Atmos</span></a>
         <p>Forecasts support planning, but conditions can change. Check local guidance before you travel.</p>
       </footer>
     </main>

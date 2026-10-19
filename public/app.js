@@ -4,6 +4,12 @@ import {
   MAX_SELECTED_ACTIVITIES,
   selectionValidation,
 } from "./itineraryHelpers.js";
+import { AtmosIcon } from "./icons.js";
+import {
+  activityIconName,
+  packingIconName,
+  weatherIconName,
+} from "./iconMappings.js";
 
 let activeTravelController = null;
 let latestTravelRequestId = 0;
@@ -40,6 +46,7 @@ const FRIENDLY_ERRORS = {
 };
 
 createApp({
+  components: { AtmosIcon },
   data() {
     return {
       cityQuery: "",
@@ -383,14 +390,10 @@ createApp({
       return [candidate.state, candidate.country].filter(Boolean).join(", ");
     },
     activityIcon(activity) {
-      const icons = {
-        sightseeing: "⌖", beach: "☀", hiking: "△", museums: "▥",
-        shopping: "◇", "outdoor-dining": "◒",
-        "historical-sites": "⌛", "parks-gardens": "♧",
-        "art-galleries": "▣", cafes: "☕",
-        "cultural-attractions": "◎", "indoor-entertainment": "◈",
-      };
-      return icons[activity.id] ?? "○";
+      return activityIconName(activity.id);
+    },
+    packingIcon(category) {
+      return packingIconName(category);
     },
     suitabilityLabel(score) {
       if (score >= 80) return "Excellent";
@@ -512,9 +515,8 @@ createApp({
       if (typeof value !== "string") return "";
       return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
     },
-    weatherSymbol(condition) {
-      const symbols = { Thunderstorm: "ϟ", Drizzle: "☂", Rain: "☔", Snow: "❄", Clear: "☀", Clouds: "☁" };
-      return symbols[condition] ?? "◌";
+    weatherIcon(condition) {
+      return weatherIconName(condition);
     },
     severityClass(classification) {
       return `severity-${String(classification).toLowerCase().replaceAll(" ", "-")}`;

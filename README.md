@@ -4,7 +4,7 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 
 ## Technologies
 
-- HTML5, CSS3, JavaScript, and Vue 3 loaded from a CDN
+- HTML5, CSS3, JavaScript, Vue 3 loaded from a CDN, and Lucide Icons 1.59.0
 - Node.js 22+ and Express
 - Native `fetch`, the OpenWeather APIs, and Google Places API (New)
 - Node.js built-in test runner
@@ -14,6 +14,12 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 ```text
 atmos/
 ├── public/
+│   ├── app.js
+│   ├── iconMappings.js
+│   ├── icons.js
+│   ├── index.html
+│   ├── itineraryHelpers.js
+│   └── styles.css
 ├── server/
 │   ├── routes/activities.js
 │   ├── routes/travel.js
@@ -54,6 +60,8 @@ Enable **Places API (New)** and billing for the Google Cloud project that owns t
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
 The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, expandable three-hour detail and metric charts, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+
+Lucide is the dashboard's sole icon system. `public/icons.js` imports only the required official icon-node modules from the pinned `lucide@1.59.0` unpkg release and exposes them through a reactive Vue component. Weather, activity, and packing mappings are centralised in `public/iconMappings.js`, so Vue state changes render the correct inline SVG without a DOM replacement pass or a frontend build step. Icons inherit their colour, use Lucide's standard two-pixel outline, and are decorative beside visible text. Lucide is distributed under the [ISC License](https://lucide.dev/license).
 
 To use the planner, search for and resolve a destination, select at least one activity, choose a maximum of 1–3 activities per day, and select **Generate my itinerary**. The client explains capacity mismatches before submission. Changing a selection marks the displayed plan as out of date until it is regenerated. Starting a destination search clears the previous itinerary and aborts any pending itinerary request, while retaining activity preferences for convenient replanning.
 
