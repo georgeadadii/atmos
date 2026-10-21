@@ -15,6 +15,7 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 atmos/
 ├── public/
 │   ├── app.js
+│   ├── forecastChart.js
 │   ├── iconMappings.js
 │   ├── icons.js
 │   ├── index.html
@@ -59,7 +60,7 @@ Enable **Places API (New)** and billing for the Google Cloud project that owns t
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, expandable three-hour detail and metric charts, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, expandable three-hour detail and metric charts, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. The travel response also includes detailed destination-local periods for temperature, rain chance, rainfall, wind, humidity, cloud coverage, pressure, and visibility. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
 
 Lucide is the dashboard's sole icon system. `public/icons.js` imports only the required official icon-node modules from the pinned `lucide@1.59.0` unpkg release and exposes them through a reactive Vue component. Weather, activity, and packing mappings are centralised in `public/iconMappings.js`, so Vue state changes render the correct inline SVG without a DOM replacement pass or a frontend build step. Icons inherit their colour, use Lucide's standard two-pixel outline, and are decorative beside visible text. Lucide is distributed under the [ISC License](https://lucide.dev/license).
 
@@ -104,7 +105,29 @@ An abbreviated success response is:
           "icon": "10d"
         },
         "intervalCount": 4,
-        "partialCoverage": true
+        "partialCoverage": true,
+        "periods": [
+          {
+            "forecastAt": "2026-10-17T12:00:00+00:00",
+            "localTime": "12:00",
+            "temperatureCelsius": 11.2,
+            "feelsLikeCelsius": 10.1,
+            "precipitationProbabilityPercent": 30,
+            "rainfallMm": 0.4,
+            "windSpeedKmh": 14.8,
+            "windGustKmh": 22.1,
+            "windDirectionDegrees": 240,
+            "humidityPercent": 78,
+            "cloudCoveragePercent": 85,
+            "pressureHpa": 1013,
+            "visibilityMetres": 10000,
+            "condition": {
+              "name": "Rain",
+              "description": "light rain",
+              "icon": "10d"
+            }
+          }
+        ]
       }
     ],
     "intervalsByDate": {

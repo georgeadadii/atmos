@@ -12,7 +12,15 @@ export function weatherInterval(
     minimum = temperature,
     maximum = temperature,
     windSpeed = 2,
+    windGust,
+    windDirection,
     rain,
+    feelsLike,
+    precipitationProbability,
+    humidity,
+    pressure,
+    cloudCoverage,
+    visibility,
     condition = "Clouds",
     description = "scattered clouds",
   } = {},
@@ -23,10 +31,22 @@ export function weatherInterval(
       temp: temperature,
       temp_min: minimum,
       temp_max: maximum,
+      ...(feelsLike === undefined ? {} : { feels_like: feelsLike }),
+      ...(humidity === undefined ? {} : { humidity }),
+      ...(pressure === undefined ? {} : { pressure }),
     },
     weather: [{ main: condition, description, icon: "03d" }],
-    wind: { speed: windSpeed },
+    wind: {
+      speed: windSpeed,
+      ...(windGust === undefined ? {} : { gust: windGust }),
+      ...(windDirection === undefined ? {} : { deg: windDirection }),
+    },
+    ...(precipitationProbability === undefined
+      ? {}
+      : { pop: precipitationProbability }),
     ...(rain === undefined ? {} : { rain: { "3h": rain } }),
+    ...(cloudCoverage === undefined ? {} : { clouds: { all: cloudCoverage } }),
+    ...(visibility === undefined ? {} : { visibility }),
   };
 }
 

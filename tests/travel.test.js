@@ -65,6 +65,9 @@ test("GET /api/travel returns the documented structured response", async () => {
       "2026-01-12",
     ]);
     assert.equal(body.forecast.intervalsByDate["2026-01-10"].length, 2);
+    assert.equal(body.forecast.days[0].periods.length, 2);
+    assert.equal(body.forecast.days[0].periods[0].localTime, "12:00");
+    assert.equal(body.forecast.days[0].minimumTemperatureCelsius, 6);
     assert.equal(body.packing.umbrella.recommended, true);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);

@@ -386,7 +386,8 @@ createApp({
         Array.isArray(payload?.forecast?.days) && payload.forecast.days.length === 3 &&
         payload?.forecast?.intervalsByDate &&
         payload.forecast.days.every((day) =>
-          Array.isArray(payload.forecast.intervalsByDate[day.date])) &&
+          Array.isArray(payload.forecast.intervalsByDate[day.date]) &&
+          Array.isArray(day?.periods)) &&
         payload?.packing?.umbrella && payload?.packing?.temperature &&
         payload?.airQuality?.current &&
         Array.isArray(payload?.airQuality?.forecast?.maxima) &&
