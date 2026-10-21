@@ -72,6 +72,7 @@ createApp({
       selectedChartPointKey: null,
       chartPointerActive: false,
       forecastMetrics: FORECAST_METRICS,
+      expandedReasons: [],
     };
   },
   computed: {
@@ -197,6 +198,13 @@ createApp({
     searchFor(city) {
       this.cityQuery = city;
       return this.loadDestination(city);
+    },
+    changeDestination() {
+      this.invalidateItineraryForDestination();
+      this.result = null;
+      this.error = "";
+      this.candidates = [];
+      window.setTimeout(() => document.querySelector("#city-search")?.focus(), 0);
     },
     selectCandidate(candidate) {
       const parts = [candidate.name, candidate.state, candidate.country].filter(Boolean);
@@ -517,6 +525,18 @@ createApp({
     },
     weatherIcon(condition) {
       return weatherIconName(condition);
+    },
+    conditionClass(condition) {
+      const name = String(condition?.name ?? "").toLowerCase();
+      if (name === "clear") return "condition-clear";
+      if (["rain", "drizzle", "thunderstorm", "snow"].includes(name)) return "condition-rain";
+      if (["squall", "tornado"].includes(name)) return "condition-wind";
+      return "condition-cloud";
+    },
+    toggleReason(key) {
+      this.expandedReasons = this.expandedReasons.includes(key)
+        ? this.expandedReasons.filter((item) => item !== key)
+        : [...this.expandedReasons, key];
     },
     severityClass(classification) {
       return `severity-${String(classification).toLowerCase().replaceAll(" ", "-")}`;

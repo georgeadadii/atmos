@@ -7,8 +7,10 @@ import ArrowRight from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/arrow-rig
 import Backpack from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/backpack.mjs";
 import Castle from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/castle.mjs";
 import Check from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/check.mjs";
+import CalendarOff from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/calendar-off.mjs";
 import ChevronDown from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/chevron-down.mjs";
 import CircleAlert from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/circle-alert.mjs";
+import CircleCheckBig from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/circle-check-big.mjs";
 import CircleMinus from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/circle-minus.mjs";
 import Clapperboard from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/clapperboard.mjs";
 import Cloud from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/cloud.mjs";
@@ -22,6 +24,7 @@ import CloudSnow from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/cloud-snow
 import CloudSun from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/cloud-sun.mjs";
 import Coffee from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/coffee.mjs";
 import Drama from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/drama.mjs";
+import Droplets from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/droplets.mjs";
 import ExternalLink from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/external-link.mjs";
 import Info from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/info.mjs";
 import Landmark from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/landmark.mjs";
@@ -37,6 +40,7 @@ import ShoppingBag from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/shopping
 import Snowflake from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/snowflake.mjs";
 import Star from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/star.mjs";
 import Sun from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/sun.mjs";
+import Thermometer from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/thermometer.mjs";
 import Tornado from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/tornado.mjs";
 import Trees from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/trees.mjs";
 import TriangleAlert from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/triangle-alert.mjs";
@@ -50,10 +54,12 @@ import Wind from "https://unpkg.com/lucide@1.59.0/dist/esm/icons/wind.mjs";
 const ICON_NODES = Object.freeze({
   "arrow-right": ArrowRight,
   backpack: Backpack,
+  "calendar-off": CalendarOff,
   castle: Castle,
   check: Check,
   "chevron-down": ChevronDown,
   "circle-alert": CircleAlert,
+  "circle-check-big": CircleCheckBig,
   "circle-minus": CircleMinus,
   clapperboard: Clapperboard,
   cloud: Cloud,
@@ -67,6 +73,7 @@ const ICON_NODES = Object.freeze({
   "cloud-sun": CloudSun,
   coffee: Coffee,
   drama: Drama,
+  droplets: Droplets,
   "external-link": ExternalLink,
   info: Info,
   landmark: Landmark,
@@ -82,6 +89,7 @@ const ICON_NODES = Object.freeze({
   snowflake: Snowflake,
   star: Star,
   sun: Sun,
+  thermometer: Thermometer,
   tornado: Tornado,
   trees: Trees,
   "triangle-alert": TriangleAlert,
