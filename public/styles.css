@@ -206,9 +206,20 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .warning-card, .calm-card { display: flex; gap: 10px; margin: 0 24px 16px; padding: 14px; border-radius: var(--radius-inner); }
 .warning-card { color: var(--warning); background: var(--warning-soft); border: 1px solid rgba(199, 119, 0, .2); }
 .warning-card > div { min-width: 0; color: var(--text); }
-.warning-card article { padding-top: 8px; }
+.warning-card h3 { font-size: 14px; }
+.warning-intro { margin-top: 3px; }
+.pollutant-warning { padding-top: 12px; margin-top: 10px; border-top: 1px solid rgba(199, 119, 0, .2); }
+.pollutant-warning header { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.pollutant-warning h4 { font-size: 13px; }
+.severity-badge { flex: 0 0 auto; padding: 3px 7px; color: var(--text); font-size: 9px; font-weight: 800; background: var(--surface); border: 1px solid currentColor; border-radius: var(--radius-pill); }
+.severity-fair { color: var(--success); }
+.severity-moderate { color: var(--warning); }
+.severity-poor, .severity-very-poor { color: var(--danger); }
+.warning-period { padding: 9px; margin-top: 8px; background: rgba(255, 255, 255, .55); border-radius: 9px; }
+.warning-period h5 { margin-bottom: 4px; font-size: 11px; }
 .warning-card p, .calm-card p { color: var(--text-soft); font-size: 11px; }
-.warning-card article p + p { margin-top: 4px; }
+.warning-period p + p { margin-top: 4px; }
+.warning-period .health-risk { color: var(--text); }
 .calm-card { color: var(--success); background: var(--surface); border: 1px solid var(--border); }
 .calm-card strong { display: block; color: var(--text); }
 .maxima-block { margin: 0 24px 12px; }
@@ -398,6 +409,8 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
   .weather-chart-panel { padding: 10px; }
   .weather-chart { width: 680px; }
   .packing-panel, .air-panel { padding-bottom: 20px; }
+  .warning-card, .calm-card, .maxima-block, .data-details { margin-right: 20px; margin-left: 20px; }
+  .pollutant-warning header { align-items: flex-start; flex-direction: column; }
   .pollutant-grid { grid-template-columns: 1fr; }
   .planner-heading { display: flex; padding: 24px 20px; }
   .destination-chip { align-self: flex-start; }

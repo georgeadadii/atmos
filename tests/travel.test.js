@@ -71,7 +71,34 @@ test("GET /api/travel returns the documented structured response", async () => {
     assert.equal(body.packing.umbrella.recommended, true);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);
+    assert.deepEqual(body.airQuality.warnings, []);
     assert.ok(Array.isArray(body.limitations));
+  });
+});
+
+test("GET /api/travel exposes combined current and forecast pollutant warnings", async () => {
+  const client = successfulClient();
+  client.getCurrentAirPollution = async () => pollutionPayload([
+    pollutionReading("2026-01-10T10:00:00Z", {
+      ...goodComponents,
+      o3: 75,
+    }, 2),
+  ]);
+  client.getAirPollutionForecast = async () => pollutionPayload([
+    pollutionReading("2026-01-11T12:00:00Z", {
+      ...goodComponents,
+      o3: 145,
+    }, 4),
+  ]);
+
+  await withServer(client, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/travel?city=Dublin%2CIE`);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.airQuality.warnings.length, 1);
+    assert.equal(body.airQuality.warnings[0].peakSeverity, "Poor");
+    assert.equal(body.airQuality.warnings[0].current.severity, "Fair");
+    assert.equal(body.airQuality.warnings[0].forecast.severity, "Poor");
   });
 });
 

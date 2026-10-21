@@ -10,6 +10,7 @@ import {
   packingIconName,
   weatherIconName,
 } from "./iconMappings.js";
+import { isTravelResponse } from "./travelResponse.js";
 
 let activeTravelController = null;
 let latestTravelRequestId = 0;
@@ -275,7 +276,7 @@ createApp({
             "Something unexpected happened. Please try again.";
           return;
         }
-        if (!this.isTravelResponse(payload)) throw new Error("INVALID_RESPONSE");
+        if (!isTravelResponse(payload)) throw new Error("INVALID_RESPONSE");
         this.result = payload;
         this.resolvedDestinationQuery = normalizedQuery;
       } catch (requestError) {
@@ -377,23 +378,6 @@ createApp({
       } catch {
         throw new Error("INVALID_RESPONSE");
       }
-    },
-    isTravelResponse(payload) {
-      return Boolean(
-        payload?.destination?.name &&
-        Number.isFinite(payload?.destination?.latitude) &&
-        Number.isFinite(payload?.destination?.longitude) &&
-        Array.isArray(payload?.forecast?.days) && payload.forecast.days.length === 3 &&
-        payload?.forecast?.intervalsByDate &&
-        payload.forecast.days.every((day) =>
-          Array.isArray(payload.forecast.intervalsByDate[day.date]) &&
-          Array.isArray(day?.periods)) &&
-        payload?.packing?.umbrella && payload?.packing?.temperature &&
-        payload?.airQuality?.current &&
-        Array.isArray(payload?.airQuality?.forecast?.maxima) &&
-        Array.isArray(payload?.airQuality?.forecast?.warnings) &&
-        Array.isArray(payload?.limitations),
-      );
     },
     candidateLocation(candidate) {
       return [candidate.state, candidate.country].filter(Boolean).join(", ");

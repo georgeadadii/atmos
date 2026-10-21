@@ -167,11 +167,27 @@ An abbreviated success response is:
   "airQuality": {
     "current": {
       "observedAt": "2026-10-17T12:00:00+00:00",
-      "aqi": 1,
-      "aqiClassification": "Good",
+      "aqi": 2,
+      "aqiClassification": "Fair",
       "components": {
-        "pm2_5": { "concentration": 7.2, "unit": "µg/m³" }
-      }
+        "o3": { "concentration": 75, "unit": "µg/m³" },
+        "no": { "concentration": 1.2, "unit": "µg/m³" },
+        "nh3": { "concentration": 0.8, "unit": "µg/m³" }
+      },
+      "warnings": [
+        {
+          "pollutant": "o3",
+          "name": "Ozone (O₃)",
+          "concentration": 75,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Fair",
+          "amountAboveGoodBoundary": 15,
+          "percentageAboveGoodBoundary": 25,
+          "observedAt": "2026-10-17T12:00:00+00:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Unusually sensitive people may notice effects; consider easing prolonged or strenuous outdoor activity if symptoms occur."
+        }
+      ]
     },
     "forecast": {
       "period": { "startDate": "2026-10-17", "endDate": "2026-10-19" },
@@ -185,25 +201,61 @@ An abbreviated success response is:
         {
           "pollutant": "o3",
           "name": "Ozone (O₃)",
-          "concentration": 81.03,
+          "concentration": 145,
           "unit": "µg/m³",
           "goodThreshold": 60,
-          "classification": "Fair",
-          "expectedAt": "2026-10-18T16:00:00+01:00",
-          "amountAboveGoodThreshold": 21.03,
-          "percentageAboveGoodThreshold": 35.1,
-          "risk": "Elevated ground-level ozone may cause breathing discomfort and aggravate respiratory conditions."
+          "classification": "Poor",
+          "expectedAt": "2026-10-18T16:00:00+01:00"
         }
       ],
       "warnings": [
         {
           "pollutant": "o3",
-          "classification": "Fair",
-          "concentration": 81.03,
-          "unit": "µg/m³"
+          "name": "Ozone (O₃)",
+          "concentration": 145,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Poor",
+          "amountAboveGoodBoundary": 85,
+          "percentageAboveGoodBoundary": 141.7,
+          "expectedAt": "2026-10-18T16:00:00+01:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Health effects are more likely, especially for sensitive groups; reduce prolonged or strenuous outdoor activity and follow local advice."
         }
       ]
-    }
+    },
+    "warnings": [
+      {
+        "pollutant": "o3",
+        "name": "Ozone (O₃)",
+        "unit": "µg/m³",
+        "goodBoundary": 60,
+        "peakSeverity": "Poor",
+        "current": {
+          "pollutant": "o3",
+          "name": "Ozone (O₃)",
+          "concentration": 75,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Fair",
+          "amountAboveGoodBoundary": 15,
+          "percentageAboveGoodBoundary": 25,
+          "observedAt": "2026-10-17T12:00:00+00:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Unusually sensitive people may notice effects; consider easing prolonged or strenuous outdoor activity if symptoms occur."
+        },
+        "forecast": {
+          "pollutant": "o3",
+          "name": "Ozone (O₃)",
+          "concentration": 145,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Poor",
+          "amountAboveGoodBoundary": 85,
+          "percentageAboveGoodBoundary": 141.7,
+          "expectedAt": "2026-10-18T16:00:00+01:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Health effects are more likely, especially for sensitive groups; reduce prolonged or strenuous outdoor activity and follow local advice."
+        }
+      }
+    ]
   },
   "limitations": [
     "One or more days contain fewer than eight three-hour forecast intervals and are marked as partial."
@@ -415,7 +467,9 @@ The three-day period means the current destination-local calendar day plus the f
 
 The representative condition is the most frequent condition among the day's intervals, with the earliest occurrence breaking a tie. Umbrella advice checks every selected interval and is enabled for any rainfall. Temperatures are classified across every interval using the assignment boundaries: Cold below 8°C, Mild from 8°C through 24°C inclusive, and Hot above 24°C. More than one observed class produces mixed-condition advice.
 
-Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Forecast analysis uses only timestamps within the same three local dates and reports the maximum expected concentration and time for each classified pollutant. OpenWeather's half-open component bands are centralized in `server/services/airQuality.js`: SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO are Good only below 20, 40, 20, 10, 60, and 4400 µg/m³ respectively; a value exactly at a boundary enters the next category. NO and NH₃ are returned as measurements, but no warning category is invented because OpenWeather does not include them in its component AQI bands. General risk text is informational, not medical advice.
+Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Forecast analysis uses only timestamps within the same three local dates and reports the maximum expected concentration and time for each classified pollutant. [OpenWeather's documented half-open component bands](https://openweathermap.org/api/air-pollution) are centralized in `server/services/airQuality.js`: SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO are Good only below 20, 40, 20, 10, 60, and 4400 µg/m³ respectively; a value exactly at a boundary enters the next category. NO and NH₃ remain measurements only because OpenWeather explicitly lists them as parameters that do not affect its AQI calculation.
+
+`current.warnings` and `forecast.warnings` contain complete source-specific warning records. `airQuality.warnings` combines those records by pollutant for display, retains both periods when both are elevated, and states the highest severity as `peakSeverity`; it does not suppress either concentration or time. Each warning gives the Good boundary, absolute and percentage elevation, severity, observation or expected-peak time, and concise health-risk guidance. Guidance combines a pollutant-specific effect summary with an explicit Fair/Moderate/Poor/Very Poor precaution mapping. The summaries draw on the [WHO overview of health-relevant air pollutants](https://www.who.int/teams/environment-climate-change-and-health/air-quality-energy-and-health/health-impacts) and [US EPA criteria-pollutant health information](https://www.epa.gov/criteria-air-pollutants). They are cautious planning information, not medical advice; users should follow local alerts and professional advice where appropriate.
 
 The dashboard intentionally does not add packing or health conclusions beyond the API response. Its forecast and pollution coverage are limited by OpenWeather's available readings; any detected gaps are shown in the data-notes disclosure.
 
@@ -429,4 +483,4 @@ Tests use deterministic mocked responses and never require a live API key:
 npm test
 ```
 
-They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, pollutant thresholds and time windows, the complete travel response, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, response-shape checks, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
+They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, every pollutant Good/Fair boundary, all five severities, current-only and forecast-only warnings, combined and multi-pollutant warnings, unclassified NO/NH₃ measurements, the complete travel response, UI response-shape checks, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.

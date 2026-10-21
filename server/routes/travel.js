@@ -46,6 +46,7 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
         airQuality: {
           current: airQuality.current,
           forecast: airQuality.forecast,
+          warnings: airQuality.warnings,
         },
         limitations,
       });
