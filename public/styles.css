@@ -120,9 +120,11 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .destination-strip > div > span { color: var(--text-soft); font-size: 14px; }
 
 /* Bento and weather */
-.bento-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.bento-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .outlook-panel { grid-column: 1 / -1; overflow: hidden; }
-.packing-panel, .air-panel { grid-column: span 6; padding-bottom: 24px; }
+.packing-panel, .air-panel { grid-column: span 6; align-self: stretch; padding-bottom: 24px; }
+.packing-panel { display: flex; flex-direction: column; }
+.pollutant-warnings-panel, .pollutant-maxima-panel { grid-column: 1 / -1; }
 .forecast-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0 20px 24px; }
 .forecast-card { position: relative; display: flex; min-width: 0; min-height: 390px; padding: 20px; color: var(--text); text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-inner); flex-direction: column; transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease); }
 .forecast-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--e1); }
@@ -185,11 +187,17 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .temperature-badges { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px 16px; }
 .temperature-chip { color: var(--primary); background: var(--primary-soft); }
 .mixed-note { display: flex; gap: 8px; margin: 0 24px 16px; padding: 12px; color: var(--text-soft); font-size: 12px; background: var(--warning-soft); border-radius: 10px; }
-.packing-list { display: grid; gap: 10px; padding: 0 24px; }
-.packing-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px; background: var(--surface-muted); border-radius: var(--radius-inner); }
+.packing-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; flex: 1; padding: 0 24px; }
+.packing-item { position: relative; display: grid; gap: 0; align-content: start; justify-items: center; min-width: 0; height: 100%; padding: 14px; text-align: center; background: var(--surface-muted); border-radius: var(--radius-inner); outline: 0; transition: background var(--ease), box-shadow var(--ease), transform var(--ease); }
+.packing-item:hover, .packing-item:focus-visible { background: var(--primary-soft); box-shadow: inset 0 0 0 1px var(--primary); transform: translateY(-1px); }
+.packing-item:focus-visible { outline: 3px solid rgba(37, 99, 235, .4); outline-offset: 2px; }
 .packing-item .icon-well { color: var(--primary); background: var(--surface); }
-.packing-item strong { font-size: 14px; }
-.packing-item p { margin-top: 3px; color: var(--text-soft); font-size: 12px; }
+.packing-item strong { display: block; margin-top: 10px; font-size: 13px; }
+.packing-item p { position: absolute; z-index: 5; top: calc(100% + 8px); left: 50%; width: min(240px, calc(100vw - 48px)); padding: 10px 12px; margin: 0; color: var(--text-soft); font-size: 11px; text-align: left; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--e2); opacity: 0; transform: translate(-50%, -4px); transition: opacity var(--ease), transform var(--ease); }
+.packing-item:first-child p { left: 0; transform: translate(0, -4px); }
+.packing-item:last-child p { right: 0; left: auto; transform: translate(0, -4px); }
+.packing-item:hover p, .packing-item:focus-visible p { opacity: 1; transform: translate(-50%, 0); }
+.packing-item:first-child:hover p, .packing-item:first-child:focus-visible p, .packing-item:last-child:hover p, .packing-item:last-child:focus-visible p { transform: translate(0, 0); }
 .air-lead { padding: 0 24px; }
 .air-lead > strong { display: block; font-size: 40px; font-weight: 800; letter-spacing: -.04em; }
 .air-lead > span { color: var(--text-soft); font-size: 14px; font-weight: 800; }
@@ -204,6 +212,8 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .meter-track i:nth-child(5) { border-color: var(--danger); }
 .meter-labels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 5px; color: var(--text-faint); font-size: 8px; text-align: center; }
 .warning-card, .calm-card { display: flex; gap: 10px; margin: 0 24px 16px; padding: 14px; border-radius: var(--radius-inner); }
+.pollutant-warnings-panel { padding: 24px 0 8px; }
+.pollutant-warnings-panel .warning-card, .pollutant-warnings-panel .calm-card { margin-bottom: 16px; }
 .warning-card { color: var(--warning); background: var(--warning-soft); border: 1px solid rgba(199, 119, 0, .2); }
 .warning-card > div { min-width: 0; color: var(--text); }
 .warning-card h3 { font-size: 14px; }
@@ -222,12 +232,13 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .warning-period .health-risk { color: var(--text); }
 .calm-card { color: var(--success); background: var(--surface); border: 1px solid var(--border); }
 .calm-card strong { display: block; color: var(--text); }
+.pollutant-maxima-panel { padding: 24px 0; }
 .maxima-block { margin: 0 24px 12px; }
-.maxima-block h3 { margin-bottom: 6px; font-size: 12px; }
+.maxima-block h3 { margin-bottom: 16px; font-size: 20px; }
 .data-details { margin: 0 24px; border-top: 1px solid var(--border); }
 .data-details > summary { color: var(--primary); font-size: 13px; font-weight: 800; }
 .data-details > p { margin: 8px 0 12px; color: var(--text-soft); font-size: 11px; }
-.pollutant-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px 12px; margin: 0; }
+.pollutant-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px 20px; margin: 0; }
 .pollutant-grid div { display: flex; gap: 8px; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .pollutant-grid dt, .pollutant-grid dd { font-size: 10px; }
 .pollutant-grid dt { color: var(--text-soft); }
@@ -374,6 +385,7 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
   .lane-condition { text-align: left; }
   .scheduled-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .welcome-cards { grid-template-columns: 1fr; }
+  .pollutant-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
@@ -394,7 +406,7 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
   .destination-strip { display: grid; grid-template-columns: auto 1fr; }
   .destination-strip .button { grid-column: 2; justify-self: start; }
   .bento-grid { grid-template-columns: 1fr; }
-  .outlook-panel, .packing-panel, .air-panel { grid-column: 1; }
+  .outlook-panel, .packing-panel, .air-panel, .pollutant-warnings-panel, .pollutant-maxima-panel { grid-column: 1; }
   .section-heading { display: flex; padding: 24px 20px 20px; }
   .forecast-days { grid-template-columns: 1fr; padding: 0 16px 20px; }
   .forecast-card { min-height: 330px; }
@@ -409,6 +421,8 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
   .weather-chart-panel { padding: 10px; }
   .weather-chart { width: 680px; }
   .packing-panel, .air-panel { padding-bottom: 20px; }
+  .packing-list { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-right: 20px; padding-left: 20px; }
+  .pollutant-warnings-panel, .pollutant-maxima-panel { padding-top: 20px; }
   .warning-card, .calm-card, .maxima-block, .data-details { margin-right: 20px; margin-left: 20px; }
   .pollutant-warning header { align-items: flex-start; flex-direction: column; }
   .pollutant-grid { grid-template-columns: 1fr; }
