@@ -4,7 +4,7 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 
 ## Technologies
 
-- HTML5, CSS3, JavaScript, and Vue 3 loaded from a CDN
+- HTML5, CSS3, JavaScript, Vue 3 loaded from a CDN, and Lucide Icons 1.59.0
 - Node.js 22+ and Express
 - Native `fetch`, the OpenWeather APIs, and Google Places API (New)
 - Node.js built-in test runner
@@ -14,7 +14,13 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 ```text
 atmos/
 ├── public/
+│   ├── app.js
 │   ├── forecastChart.js
+│   ├── iconMappings.js
+│   ├── icons.js
+│   ├── index.html
+│   ├── itineraryHelpers.js
+│   └── styles.css
 ├── server/
 │   ├── routes/activities.js
 │   ├── routes/travel.js
@@ -54,7 +60,9 @@ Enable **Places API (New)** and billing for the Google Cloud project that owns t
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. Each daily summary row is an accessible disclosure for an interactive, full-width chart of the available three-hour periods. The chart selector switches between temperature, rain chance, rainfall, wind, humidity, cloud coverage, pressure and visibility without another API request. A compact overview summarises the available periods, while a chart data table provides the accessible numeric equivalent. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, expandable three-hour detail and metric charts, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. The travel response also includes detailed destination-local periods for temperature, rain chance, rainfall, wind, humidity, cloud coverage, pressure, and visibility. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+
+Lucide is the dashboard's sole icon system. `public/icons.js` imports only the required official icon-node modules from the pinned `lucide@1.59.0` unpkg release and exposes them through a reactive Vue component. Weather, activity, and packing mappings are centralised in `public/iconMappings.js`, so Vue state changes render the correct inline SVG without a DOM replacement pass or a frontend build step. Icons inherit their colour, use Lucide's standard two-pixel outline, and are decorative beside visible text. Lucide is distributed under the [ISC License](https://lucide.dev/license).
 
 To use the planner, search for and resolve a destination, select at least one activity, choose a maximum of 1–3 activities per day, and select **Generate my itinerary**. The client explains capacity mismatches before submission. Changing a selection marks the displayed plan as out of date until it is regenerated. Starting a destination search clears the previous itinerary and aborts any pending itinerary request, while retaining activity preferences for convenient replanning.
 
@@ -121,7 +129,24 @@ An abbreviated success response is:
           }
         ]
       }
-    ]
+    ],
+    "intervalsByDate": {
+      "2026-10-17": [
+        {
+          "timestamp": 1792238400,
+          "temperature": 11.4,
+          "minimum": 10.8,
+          "maximum": 12.1,
+          "windSpeedKmh": 14.8,
+          "rainfall": 0.4,
+          "condition": {
+            "name": "Rain",
+            "description": "light rain",
+            "icon": "10d"
+          }
+        }
+      ]
+    }
   },
   "packing": {
     "umbrella": {
@@ -142,11 +167,27 @@ An abbreviated success response is:
   "airQuality": {
     "current": {
       "observedAt": "2026-10-17T12:00:00+00:00",
-      "aqi": 1,
-      "aqiClassification": "Good",
+      "aqi": 2,
+      "aqiClassification": "Fair",
       "components": {
-        "pm2_5": { "concentration": 7.2, "unit": "µg/m³" }
-      }
+        "o3": { "concentration": 75, "unit": "µg/m³" },
+        "no": { "concentration": 1.2, "unit": "µg/m³" },
+        "nh3": { "concentration": 0.8, "unit": "µg/m³" }
+      },
+      "warnings": [
+        {
+          "pollutant": "o3",
+          "name": "Ozone (O₃)",
+          "concentration": 75,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Fair",
+          "amountAboveGoodBoundary": 15,
+          "percentageAboveGoodBoundary": 25,
+          "observedAt": "2026-10-17T12:00:00+00:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Unusually sensitive people may notice effects; consider easing prolonged or strenuous outdoor activity if symptoms occur."
+        }
+      ]
     },
     "forecast": {
       "period": { "startDate": "2026-10-17", "endDate": "2026-10-19" },
@@ -160,39 +201,67 @@ An abbreviated success response is:
         {
           "pollutant": "o3",
           "name": "Ozone (O₃)",
-          "concentration": 81.03,
+          "concentration": 145,
           "unit": "µg/m³",
           "goodThreshold": 60,
-          "classification": "Fair",
-          "expectedAt": "2026-10-18T16:00:00+01:00",
-          "amountAboveGoodThreshold": 21.03,
-          "percentageAboveGoodThreshold": 35.1,
-          "risk": "Elevated ground-level ozone may cause breathing discomfort and aggravate respiratory conditions."
+          "classification": "Poor",
+          "expectedAt": "2026-10-18T16:00:00+01:00"
         }
       ],
       "warnings": [
         {
           "pollutant": "o3",
-          "classification": "Fair",
-          "concentration": 81.03,
-          "unit": "µg/m³"
+          "name": "Ozone (O₃)",
+          "concentration": 145,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Poor",
+          "amountAboveGoodBoundary": 85,
+          "percentageAboveGoodBoundary": 141.7,
+          "expectedAt": "2026-10-18T16:00:00+01:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Health effects are more likely, especially for sensitive groups; reduce prolonged or strenuous outdoor activity and follow local advice."
         }
       ]
-    }
+    },
+    "warnings": [
+      {
+        "pollutant": "o3",
+        "name": "Ozone (O₃)",
+        "unit": "µg/m³",
+        "goodBoundary": 60,
+        "peakSeverity": "Poor",
+        "current": {
+          "pollutant": "o3",
+          "name": "Ozone (O₃)",
+          "concentration": 75,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Fair",
+          "amountAboveGoodBoundary": 15,
+          "percentageAboveGoodBoundary": 25,
+          "observedAt": "2026-10-17T12:00:00+00:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Unusually sensitive people may notice effects; consider easing prolonged or strenuous outdoor activity if symptoms occur."
+        },
+        "forecast": {
+          "pollutant": "o3",
+          "name": "Ozone (O₃)",
+          "concentration": 145,
+          "unit": "µg/m³",
+          "goodBoundary": 60,
+          "severity": "Poor",
+          "amountAboveGoodBoundary": 85,
+          "percentageAboveGoodBoundary": 141.7,
+          "expectedAt": "2026-10-18T16:00:00+01:00",
+          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Health effects are more likely, especially for sensitive groups; reduce prolonged or strenuous outdoor activity and follow local advice."
+        }
+      }
+    ]
   },
   "limitations": [
     "One or more days contain fewer than eight three-hour forecast intervals and are marked as partial."
   ]
 }
 ```
-
-The `periods` arrays are derived from the same OpenWeather 5-day / 3-hour response used for daily summaries, so this feature needs no additional OpenWeather subscription or request. Periods are chronological and are grouped and labelled using OpenWeather's fixed offset for the destination. This avoids applying the browser's timezone, but a fixed offset cannot model every daylight-saving transition like an IANA timezone can.
-
-OpenWeather supplies observations at three-hour resolution rather than for every clock hour. The current day and occasional later days can therefore have partial coverage. Atmos shows only the available periods and never fills gaps. Optional measurements are returned as `null` and shown as unavailable when the provider omits them or supplies invalid values. In line with OpenWeather's forecast semantics and the established daily aggregation, an omitted `rain` object means no rain is forecast and is shown as `0 mm`; a present but malformed rain measurement remains unavailable.
-
-The detailed chart observes its container width and recalculates SVG coordinates when the layout changes. Temperature and wind use separate primary and secondary lines for actual versus feels-like temperature and wind versus gusts. Rainfall uses bars, percentage measurements use a stable 0 to 100 scale, and missing values are never joined across a gap. Chart points can be inspected with a pointer or keyboard, and the currently selected time and value are also displayed as text.
-
-The daily overview uses the existing daily temperature range and rainfall total. It derives maximum precipitation probability, maximum wind gust, average humidity and average cloud coverage from only the valid values in the available periods. When coverage is partial, the interface states that these values do not represent a complete eight-period day.
 
 Errors never include the API key or a stack trace:
 
@@ -398,7 +467,9 @@ The three-day period means the current destination-local calendar day plus the f
 
 The representative condition is the most frequent condition among the day's intervals, with the earliest occurrence breaking a tie. Umbrella advice checks every selected interval and is enabled for any rainfall. Temperatures are classified across every interval using the assignment boundaries: Cold below 8°C, Mild from 8°C through 24°C inclusive, and Hot above 24°C. More than one observed class produces mixed-condition advice.
 
-Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Forecast analysis uses only timestamps within the same three local dates and reports the maximum expected concentration and time for each classified pollutant. OpenWeather's half-open component bands are centralized in `server/services/airQuality.js`: SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO are Good only below 20, 40, 20, 10, 60, and 4400 µg/m³ respectively; a value exactly at a boundary enters the next category. NO and NH₃ are returned as measurements, but no warning category is invented because OpenWeather does not include them in its component AQI bands. General risk text is informational, not medical advice.
+Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Forecast analysis uses only timestamps within the same three local dates and reports the maximum expected concentration and time for each classified pollutant. [OpenWeather's documented half-open component bands](https://openweathermap.org/api/air-pollution) are centralized in `server/services/airQuality.js`: SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO are Good only below 20, 40, 20, 10, 60, and 4400 µg/m³ respectively; a value exactly at a boundary enters the next category. NO and NH₃ remain measurements only because OpenWeather explicitly lists them as parameters that do not affect its AQI calculation.
+
+`current.warnings` and `forecast.warnings` contain complete source-specific warning records. `airQuality.warnings` combines those records by pollutant for display, retains both periods when both are elevated, and states the highest severity as `peakSeverity`; it does not suppress either concentration or time. Each warning gives the Good boundary, absolute and percentage elevation, severity, observation or expected-peak time, and concise health-risk guidance. Guidance combines a pollutant-specific effect summary with an explicit Fair/Moderate/Poor/Very Poor precaution mapping. The summaries draw on the [WHO overview of health-relevant air pollutants](https://www.who.int/teams/environment-climate-change-and-health/air-quality-energy-and-health/health-impacts) and [US EPA criteria-pollutant health information](https://www.epa.gov/criteria-air-pollutants). They are cautious planning information, not medical advice; users should follow local alerts and professional advice where appropriate.
 
 The dashboard intentionally does not add packing or health conclusions beyond the API response. Its forecast and pollution coverage are limited by OpenWeather's available readings; any detected gaps are shown in the data-notes disclosure.
 
@@ -412,4 +483,4 @@ Tests use deterministic mocked responses and never require a live API key:
 npm test
 ```
 
-They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, pollutant thresholds and time windows, the complete travel response, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, response-shape checks, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
+They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, every pollutant Good/Fair boundary, all five severities, current-only and forecast-only warnings, combined and multi-pollutant warnings, unclassified NO/NH₃ measurements, the complete travel response, UI response-shape checks, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
