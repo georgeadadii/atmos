@@ -33,7 +33,8 @@ function successfulClient() {
     async getAirPollutionForecast() {
       return pollutionPayload([
         pollutionReading("2026-01-10T11:00:00Z", goodComponents),
-        pollutionReading("2026-01-12T23:00:00Z", goodComponents),
+        pollutionReading("2026-01-11T00:00:00Z", goodComponents),
+        pollutionReading("2026-01-13T23:00:00Z", goodComponents),
       ]);
     },
   };
@@ -60,23 +61,41 @@ test("GET /api/travel returns the documented structured response", async () => {
     assert.deepEqual(body.destination, destination);
     assert.equal(body.forecast.days.length, 3);
     assert.deepEqual(Object.keys(body.forecast.intervalsByDate), [
-      "2026-01-10",
       "2026-01-11",
       "2026-01-12",
+      "2026-01-13",
     ]);
-    assert.equal(body.forecast.intervalsByDate["2026-01-10"].length, 2);
+    assert.deepEqual(body.forecast.days.map(({ date }) => date), [
+      "2026-01-11",
+      "2026-01-12",
+      "2026-01-13",
+    ]);
+    assert.equal(body.forecast.intervalsByDate["2026-01-10"], undefined);
+    assert.equal(body.forecast.intervalsByDate["2026-01-11"].length, 2);
+    assert.deepEqual(
+      {
+        temperature: body.forecast.intervalsByDate["2026-01-11"][1].temperature,
+        rainfall: body.forecast.intervalsByDate["2026-01-11"][1].rainfall,
+        windSpeedKmh: body.forecast.intervalsByDate["2026-01-11"][1].windSpeedKmh,
+      },
+      { temperature: 8, rainfall: 1.2, windSpeedKmh: 14.4 },
+    );
     assert.equal(body.forecast.days[0].periods.length, 2);
     assert.equal(body.forecast.days[0].periods[0].localTime, "12:00");
     assert.equal(body.forecast.days[0].minimumTemperatureCelsius, 6);
-    assert.equal(body.packing.umbrella.recommended, true);
+    assert.equal(body.airQuality.forecast.period.startDate, "2026-01-11");
+    assert.equal(body.airQuality.forecast.period.endDate, "2026-01-13");
+    assert.equal(body.packing, undefined);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);
-    assert.deepEqual(body.airQuality.warnings, []);
+    assert.equal(body.airQuality.warnings, undefined);
+    assert.equal(body.airQuality.current.warnings, undefined);
+    assert.equal(body.airQuality.forecast.warnings, undefined);
     assert.ok(Array.isArray(body.limitations));
   });
 });
 
-test("GET /api/travel exposes combined current and forecast pollutant warnings", async () => {
+test("GET /api/travel exposes raw current and forecast pollutant values", async () => {
   const client = successfulClient();
   client.getCurrentAirPollution = async () => pollutionPayload([
     pollutionReading("2026-01-10T10:00:00Z", {
@@ -95,10 +114,18 @@ test("GET /api/travel exposes combined current and forecast pollutant warnings",
     const response = await fetch(`${baseUrl}/api/travel?city=Dublin%2CIE`);
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.airQuality.warnings.length, 1);
-    assert.equal(body.airQuality.warnings[0].peakSeverity, "Poor");
-    assert.equal(body.airQuality.warnings[0].current.severity, "Fair");
-    assert.equal(body.airQuality.warnings[0].forecast.severity, "Poor");
+    assert.equal(body.airQuality.current.components.o3.concentration, 75);
+    assert.deepEqual(
+      body.airQuality.forecast.maxima.find(({ pollutant }) => pollutant === "o3"),
+      {
+        pollutant: "o3",
+        name: "Ozone (O₃)",
+        concentration: 145,
+        unit: "µg/m³",
+        expectedAt: "2026-01-11T12:00:00+00:00",
+      },
+    );
+    assert.equal(body.airQuality.warnings, undefined);
   });
 });
 
@@ -118,6 +145,39 @@ test("GET /api/travel forwards a deterministic destination selection", async () 
     assert.deepEqual(receivedSelection, {
       latitude: 53.35,
       longitude: -6.26,
+    });
+  });
+});
+
+test("GET /api/travel preserves ambiguous destination responses", async () => {
+  const client = successfulClient();
+  const candidates = [
+    {
+      name: "Springfield",
+      state: "Illinois",
+      country: "US",
+      latitude: 39.78,
+      longitude: -89.64,
+    },
+  ];
+  client.geocode = async () => {
+    throw new AppError(
+      "AMBIGUOUS_CITY",
+      "Multiple destinations matched that search.",
+      300,
+      { candidates },
+    );
+  };
+
+  await withServer(client, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/travel?city=Springfield`);
+    assert.equal(response.status, 300);
+    assert.deepEqual(await response.json(), {
+      error: {
+        code: "AMBIGUOUS_CITY",
+        message: "Multiple destinations matched that search.",
+        details: { candidates },
+      },
     });
   });
 });

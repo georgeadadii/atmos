@@ -244,7 +244,7 @@ export function createItineraryRouter({
         },
         forecast: {
           interpretation:
-            "Three destination-local calendar days including the current day.",
+            "The next three full destination-local calendar days, excluding the current day.",
           timezoneOffsetSeconds: weather.timezoneOffsetSeconds,
         },
         itinerary: { days, overallScore: plan.overallScore },

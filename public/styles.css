@@ -129,7 +129,6 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .forecast-card { position: relative; display: flex; min-width: 0; min-height: 390px; padding: 20px; color: var(--text); text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-inner); flex-direction: column; transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease); }
 .forecast-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--e1); }
 .forecast-card.expanded { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
-.forecast-card.partial { border-style: dashed; }
 .forecast-card-top { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
 .forecast-card-top strong, .forecast-card-top small { display: block; }
 .forecast-card-top strong { font-size: 16px; }
@@ -145,7 +144,18 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
 .temperature-low { color: var(--text-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
 .weather-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
 .weather-stats > span { display: inline-flex; gap: 5px; align-items: center; min-height: 30px; padding: 0 9px; color: var(--text-soft); font-size: 11px; font-weight: 700; background: var(--surface-muted); border-radius: var(--radius-pill); font-variant-numeric: tabular-nums; }
-.partial-chip { align-self: flex-start; margin-top: 12px; color: var(--text); background: var(--warning-soft); border: 1px solid var(--warning); }
+.summary-table-wrap { max-width: calc(100% - 40px); margin: 0 20px 24px; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-inner); }
+.summary-table { width: 100%; min-width: 680px; overflow: hidden; background: var(--surface); border-collapse: collapse; }
+.summary-table caption { padding: 16px 18px; font-size: 16px; font-weight: 800; text-align: left; background: var(--surface-muted); border-bottom: 1px solid var(--border); }
+.summary-table th, .summary-table td { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.summary-table thead th { color: var(--text-soft); font-size: 11px; font-weight: 800; text-align: left; text-transform: uppercase; }
+.summary-table thead th:not(:first-child), .summary-table td { text-align: right; }
+.summary-table tbody th { font-size: 13px; text-align: left; }
+.summary-table tbody td { color: var(--text-soft); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.summary-table tbody tr:last-child > * { border-bottom: 0; }
+.summary-date { display: grid; justify-items: start; }
+.summary-date small { margin-top: 2px; color: var(--text-faint); font-size: 11px; font-weight: 600; }
+.summary-rainfall strong { color: var(--text); }
 .forecast-detail { margin: 0 20px 20px; padding: 24px; background: var(--surface-muted); border-radius: var(--radius-inner); animation: detail-open 300ms cubic-bezier(.2, .8, .2, 1); }
 @keyframes detail-open { from { opacity: 0; transform: translateY(-8px); } }
 .detail-heading { display: flex; gap: 24px; align-items: flex-end; justify-content: space-between; }
@@ -412,6 +422,7 @@ details[open] > summary .lucide-icon { transform: rotate(180deg); }
   .section-heading { display: flex; padding: 24px 20px 20px; }
   .forecast-days { grid-template-columns: 1fr; padding: 0 16px 20px; }
   .forecast-card { min-height: 330px; }
+  .summary-table-wrap { max-width: calc(100% - 32px); margin: 0 16px 20px; }
   .forecast-detail { margin: 0 16px 16px; padding: 16px; }
   .detail-heading { display: flex; }
   .metric-tabs { align-self: stretch; overflow-x: auto; }

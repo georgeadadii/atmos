@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  classifyPollutant,
-  POLLUTANTS,
-  processAirQuality,
-  SEVERITY_GUIDANCE,
-} from "../server/services/airQuality.js";
+import { processAirQuality } from "../server/services/airQuality.js";
 import {
   goodComponents,
   pollutionPayload,
@@ -25,137 +20,72 @@ const goodForecast = () => pollutionPayload([
   pollutionReading("2026-01-12T23:00:00Z"),
 ]);
 
-test("every exact Good/Fair boundary is inclusive in Fair", async (context) => {
-  for (const [pollutant, metadata] of Object.entries(POLLUTANTS)) {
-    await context.test(pollutant, () => {
-      const boundary = metadata.boundaries[0];
-      assert.equal(classifyPollutant(pollutant, boundary - 0.001), "Good");
-      assert.equal(classifyPollutant(pollutant, boundary), "Fair");
+test("air-quality processing returns raw observations and forecast maxima", () => {
+  const result = processAirQuality(goodCurrent(), goodForecast(), context);
+
+  assert.equal(result.current.observedAt, "2026-01-10T10:00:00+00:00");
+  assert.equal(result.current.aqi, 1);
+  assert.equal(result.current.aqiClassification, "Good");
+  assert.deepEqual(result.current.components.o3, {
+    concentration: 30,
+    unit: "µg/m³",
+  });
+  assert.equal(result.forecast.maxima.length, 6);
+  assert.deepEqual(
+    result.forecast.maxima.find(({ pollutant }) => pollutant === "o3"),
+    {
+      pollutant: "o3",
+      name: "Ozone (O₃)",
+      concentration: 30,
+      unit: "µg/m³",
+      expectedAt: "2026-01-10T11:00:00+00:00",
+    },
+  );
+  assert.equal(result.warnings, undefined);
+  assert.equal(result.current.warnings, undefined);
+  assert.equal(result.forecast.warnings, undefined);
+});
+
+test("forecast maxima retain peak values and their timestamps without classifications", () => {
+  const forecast = pollutionPayload([
+    pollutionReading("2026-01-10T11:00:00Z", { ...goodComponents, o3: 75 }),
+    pollutionReading("2026-01-12T16:00:00Z", { ...goodComponents, o3: 145 }),
+  ]);
+  const result = processAirQuality(goodCurrent(), forecast, context);
+  const ozone = result.forecast.maxima.find(({ pollutant }) => pollutant === "o3");
+
+  assert.deepEqual(ozone, {
+    pollutant: "o3",
+    name: "Ozone (O₃)",
+    concentration: 145,
+    unit: "µg/m³",
+    expectedAt: "2026-01-12T16:00:00+00:00",
+  });
+  assert.equal(ozone.classification, undefined);
+  assert.equal(ozone.goodThreshold, undefined);
+});
+
+test("OpenWeather AQI values retain their provider classifications", async (testContext) => {
+  for (const [aqi, classification] of [
+    [1, "Good"],
+    [2, "Fair"],
+    [3, "Moderate"],
+    [4, "Poor"],
+    [5, "Very Poor"],
+  ]) {
+    await testContext.test(classification, () => {
+      const current = pollutionPayload([
+        pollutionReading("2026-01-10T10:00:00Z", goodComponents, aqi),
+      ]);
+      assert.equal(
+        processAirQuality(current, goodForecast(), context).current.aqiClassification,
+        classification,
+      );
     });
   }
 });
 
-test("classification covers all five half-open severities", () => {
-  assert.equal(classifyPollutant("no2", 39.999), "Good");
-  assert.equal(classifyPollutant("no2", 40), "Fair");
-  assert.equal(classifyPollutant("no2", 70), "Moderate");
-  assert.equal(classifyPollutant("no2", 150), "Poor");
-  assert.equal(classifyPollutant("no2", 200), "Very Poor");
-  assert.deepEqual(Object.keys(SEVERITY_GUIDANCE), [
-    "Fair",
-    "Moderate",
-    "Poor",
-    "Very Poor",
-  ]);
-  assert.equal(new Set(Object.values(SEVERITY_GUIDANCE)).size, 4);
-});
-
-test("all classified pollutants below Good boundaries produce the honest no-warning state", () => {
-  const result = processAirQuality(goodCurrent(), goodForecast(), context);
-  assert.deepEqual(result.current.warnings, []);
-  assert.deepEqual(result.forecast.warnings, []);
-  assert.deepEqual(result.warnings, []);
-  assert.equal(result.forecast.maxima.length, 6);
-});
-
-test("current-only elevation includes source-specific threshold, time and health details", () => {
-  const current = pollutionPayload([
-    pollutionReading("2026-01-10T10:00:00Z", {
-      ...goodComponents,
-      so2: 20,
-    }),
-  ]);
-  const result = processAirQuality(current, goodForecast(), context);
-
-  assert.equal(result.current.warnings.length, 1);
-  assert.deepEqual(result.forecast.warnings, []);
-  assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0].forecast, null);
-  assert.deepEqual(result.warnings[0].current, {
-    pollutant: "so2",
-    name: "Sulphur dioxide (SO₂)",
-    concentration: 20,
-    unit: "µg/m³",
-    goodBoundary: 20,
-    severity: "Fair",
-    amountAboveGoodBoundary: 0,
-    percentageAboveGoodBoundary: 0,
-    observedAt: "2026-01-10T10:00:00+00:00",
-    healthRisk: `${POLLUTANTS.so2.healthEffect} ${SEVERITY_GUIDANCE.Fair}`,
-  });
-});
-
-test("forecast-only elevation reports the peak inside the selected travel window", () => {
-  const forecast = pollutionPayload([
-    pollutionReading("2026-01-11T12:00:00Z", {
-      ...goodComponents,
-      pm2_5: 30,
-    }),
-  ]);
-  const result = processAirQuality(goodCurrent(), forecast, context);
-
-  assert.deepEqual(result.current.warnings, []);
-  assert.equal(result.forecast.warnings.length, 1);
-  assert.equal(result.warnings[0].current, null);
-  assert.equal(result.warnings[0].forecast.severity, "Moderate");
-  assert.equal(result.warnings[0].forecast.amountAboveGoodBoundary, 20);
-  assert.equal(result.warnings[0].forecast.percentageAboveGoodBoundary, 200);
-  assert.equal(
-    result.warnings[0].forecast.expectedAt,
-    "2026-01-11T12:00:00+00:00",
-  );
-});
-
-test("the same elevated pollutant is combined without hiding either period or peak severity", () => {
-  const current = pollutionPayload([
-    pollutionReading("2026-01-10T10:00:00Z", {
-      ...goodComponents,
-      o3: 75,
-    }),
-  ]);
-  const forecast = pollutionPayload([
-    pollutionReading("2026-01-12T16:00:00Z", {
-      ...goodComponents,
-      o3: 145,
-    }),
-  ]);
-  const result = processAirQuality(current, forecast, context);
-
-  assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0].peakSeverity, "Poor");
-  assert.equal(result.warnings[0].current.severity, "Fair");
-  assert.equal(result.warnings[0].forecast.severity, "Poor");
-  assert.notEqual(
-    result.warnings[0].current.healthRisk,
-    result.warnings[0].forecast.healthRisk,
-  );
-});
-
-test("multiple elevated pollutants create one combined warning per pollutant", () => {
-  const current = pollutionPayload([
-    pollutionReading("2026-01-10T10:00:00Z", {
-      ...goodComponents,
-      co: 5000,
-      no2: 75,
-    }),
-  ]);
-  const forecast = pollutionPayload([
-    pollutionReading("2026-01-11T12:00:00Z", {
-      ...goodComponents,
-      co: 16000,
-      pm10: 100,
-    }),
-  ]);
-  const result = processAirQuality(current, forecast, context);
-
-  assert.deepEqual(
-    result.warnings.map((warning) => warning.pollutant),
-    ["no2", "pm10", "co"],
-  );
-  assert.equal(result.warnings.find((warning) => warning.pollutant === "co").peakSeverity, "Very Poor");
-});
-
-test("NO and NH3 remain measurements without invented classifications", () => {
+test("NO and NH3 remain current measurements but are not forecast maxima", () => {
   const result = processAirQuality(goodCurrent(), goodForecast(), context);
   assert.deepEqual(result.current.components.no, {
     concentration: 1,
@@ -166,10 +96,7 @@ test("NO and NH3 remain measurements without invented classifications", () => {
     unit: "µg/m³",
   });
   assert.equal(result.forecast.maxima.some(({ pollutant }) => pollutant === "no"), false);
-  assert.equal(result.warnings.some(({ pollutant }) => pollutant === "nh3"), false);
-  assert.throws(() => classifyPollutant("no", 10), {
-    code: "INVALID_POLLUTION_DATA",
-  });
+  assert.equal(result.forecast.maxima.some(({ pollutant }) => pollutant === "nh3"), false);
 });
 
 test("air-quality processing only uses forecast readings inside the selected local dates", () => {
@@ -182,10 +109,50 @@ test("air-quality processing only uses forecast readings inside the selected loc
     ]),
     context,
   );
+  const ozone = result.forecast.maxima.find(({ pollutant }) => pollutant === "o3");
+
   assert.equal(result.forecast.readingCount, 1);
-  assert.equal(result.forecast.warnings.length, 0);
+  assert.equal(ozone.concentration, 30);
   assert.equal(result.forecast.coverage.complete, false);
   assert.equal(result.limitations.length, 1);
+});
+
+test("air-quality boundaries use destination-local midnights and exclude the current day", () => {
+  const result = processAirQuality(
+    goodCurrent(),
+    pollutionPayload([
+      pollutionReading("2026-01-10T21:59:00Z", { ...goodComponents, o3: 200 }),
+      pollutionReading("2026-01-10T22:00:00Z", { ...goodComponents, o3: 80 }),
+      pollutionReading("2026-01-13T21:59:00Z", { ...goodComponents, o3: 90 }),
+      pollutionReading("2026-01-13T22:00:00Z", { ...goodComponents, o3: 210 }),
+    ]),
+    {
+      dates: ["2026-01-11", "2026-01-12", "2026-01-13"],
+      timezoneOffsetSeconds: 7_200,
+    },
+  );
+  const ozone = result.forecast.maxima.find(({ pollutant }) => pollutant === "o3");
+
+  assert.equal(result.forecast.readingCount, 2);
+  assert.equal(ozone.concentration, 90);
+  assert.equal(ozone.expectedAt, "2026-01-13T23:59:00+02:00");
+});
+
+test("complete forecast coverage is preserved as aggregation metadata", () => {
+  const result = processAirQuality(
+    goodCurrent(),
+    pollutionPayload([
+      pollutionReading("2026-01-10T00:00:00Z"),
+      pollutionReading("2026-01-12T23:00:00Z"),
+    ]),
+    context,
+  );
+
+  assert.deepEqual(result.forecast.coverage, {
+    complete: true,
+    firstReadingAt: "2026-01-10T00:00:00+00:00",
+    lastReadingAt: "2026-01-12T23:00:00+00:00",
+  });
 });
 
 test("malformed readings are rejected or disclosed when valid forecast data remains", () => {

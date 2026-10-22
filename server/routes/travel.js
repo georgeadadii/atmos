@@ -3,7 +3,6 @@ import { Router } from "express";
 import { errorResponse } from "../errors.js";
 import { processAirQuality } from "../services/airQuality.js";
 import { selectedCoordinatesFrom } from "../services/destinationSelection.js";
-import { createPackingRecommendations } from "../services/packingRecommendations.js";
 import { processForecast } from "../services/weatherProcessing.js";
 
 export function createTravelRouter({ openWeatherClient, now = Date.now }) {
@@ -25,7 +24,6 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
           openWeatherClient.getAirPollutionForecast(latitude, longitude),
         ]);
       const weather = processForecast(forecastPayload, { now: now() });
-      const packing = createPackingRecommendations(weather.intervals);
       const airQuality = processAirQuality(
         currentAirPayload,
         forecastAirPayload,
@@ -37,16 +35,14 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
         destination,
         forecast: {
           interpretation:
-            "Three destination-local calendar days including the current day.",
+            "The next three full destination-local calendar days, excluding the current day.",
           timezoneOffsetSeconds: weather.timezoneOffsetSeconds,
           days: weather.days,
           intervalsByDate: weather.intervalsByDate,
         },
-        packing,
         airQuality: {
           current: airQuality.current,
           forecast: airQuality.forecast,
-          warnings: airQuality.warnings,
         },
         limitations,
       });

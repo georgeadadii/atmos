@@ -10,6 +10,13 @@ import {
   packingIconName,
   weatherIconName,
 } from "./iconMappings.js";
+import { createPackingAdvice, rainfallLevel } from "./packing.js";
+import {
+  AIR_QUALITY_UNIT,
+  buildPollutantWarnings,
+  classifyPollutant,
+  POLLUTANTS,
+} from "./airQualityWarnings.js";
 import { isTravelResponse } from "./travelResponse.js";
 
 let activeTravelController = null;
@@ -77,6 +84,81 @@ createApp({
     };
   },
   computed: {
+    packing() {
+      const forecast = this.result?.forecast;
+      if (
+        !Array.isArray(forecast?.days) ||
+        forecast.days.length !== 3 ||
+        !forecast.intervalsByDate ||
+        typeof forecast.intervalsByDate !== "object"
+      ) return null;
+
+      const dates = forecast.days.map((day) => day?.date);
+      if (
+        dates.some((date) => typeof date !== "string") ||
+        dates.some((date) => !Array.isArray(forecast.intervalsByDate[date]))
+      ) return null;
+
+      return createPackingAdvice(forecast.intervalsByDate, dates);
+    },
+    pollutantDataAvailable() {
+      const current = this.result?.airQuality?.current;
+      const components = current?.components;
+      const maxima = this.result?.airQuality?.forecast?.maxima;
+      const validMeasurement = (measurement) => (
+        Number.isFinite(measurement?.concentration)
+        && measurement.concentration >= 0
+        && measurement.unit === AIR_QUALITY_UNIT
+      );
+
+      return Boolean(
+        typeof current?.observedAt === "string"
+        && current.observedAt.length > 0
+        && components
+        && typeof components === "object"
+        && Object.keys(POLLUTANTS).every((pollutant) => (
+          validMeasurement(components[pollutant])
+        ))
+        && Array.isArray(maxima)
+        && Object.keys(POLLUTANTS).every((pollutant) => (
+          maxima.some((maximum) => (
+            maximum?.pollutant === pollutant
+            && validMeasurement(maximum)
+            && typeof maximum.expectedAt === "string"
+            && maximum.expectedAt.length > 0
+          ))
+        )),
+      );
+    },
+    pollutantWarnings() {
+      if (!this.pollutantDataAvailable) return [];
+      return buildPollutantWarnings(this.result.airQuality);
+    },
+    pollutantMaxima() {
+      const maxima = this.result?.airQuality?.forecast?.maxima;
+      if (!Array.isArray(maxima)) return [];
+
+      return maxima.map((maximum) => ({
+        ...maximum,
+        classification: classifyPollutant(
+          maximum?.pollutant,
+          maximum?.concentration,
+        ),
+      }));
+    },
+    summaryRows() {
+      const days = this.result?.forecast?.days;
+      if (!Array.isArray(days) || days.length !== 3) return [];
+
+      return days.map((day) => ({
+        date: day.date,
+        minimumTemperatureCelsius: day.minimumTemperatureCelsius,
+        maximumTemperatureCelsius: day.maximumTemperatureCelsius,
+        averageWindSpeedKmh: day.averageWindSpeedKmh,
+        totalRainfallMm: day.totalRainfallMm,
+        rainfallLevel: rainfallLevel(day.totalRainfallMm),
+      }));
+    },
     forecastPeriod() {
       const days = this.result?.forecast?.days ?? [];
       if (!days.length) return "Not available";

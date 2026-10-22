@@ -15,11 +15,13 @@ Atmos is a weather-aware travel planning application for CSU44000 Internet Appli
 atmos/
 ├── public/
 │   ├── app.js
+│   ├── airQualityWarnings.js
 │   ├── forecastChart.js
 │   ├── iconMappings.js
 │   ├── icons.js
 │   ├── index.html
 │   ├── itineraryHelpers.js
+│   ├── packing.js
 │   └── styles.css
 ├── server/
 │   ├── routes/activities.js
@@ -33,7 +35,6 @@ atmos/
 │   │   ├── itineraryPlanner.js
 │   │   ├── googlePlaces.js
 │   │   ├── openWeather.js
-│   │   ├── packingRecommendations.js
 │   │   ├── placeRanking.js
 │   │   ├── time.js
 │   │   └── weatherProcessing.js
@@ -60,7 +61,7 @@ Enable **Places API (New)** and billing for the Google Cloud project that owns t
 
 Start the application with `npm start`. For automatic server restarts during development, use `npm run dev`. The application is served at <http://localhost:3000>, and `GET /api/health` returns the service status.
 
-The dashboard lets a user search by city or city/country combination, then presents the destination-local three-day forecast, expandable three-hour detail and metric charts, partial-coverage labels, server-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. The travel response also includes detailed destination-local periods for temperature, rain chance, rainfall, wind, humidity, cloud coverage, pressure, and visibility. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
+The dashboard lets a user search by city or city/country combination, then presents the next three full destination-local calendar days, a four-column weather summary, expandable three-hour detail and metric charts, client-generated packing advice, current AQI, pollutant warnings, all pollutant maxima, and data limitations. The travel response also includes detailed destination-local periods for temperature, rain chance, rainfall, wind, humidity, cloud coverage, pressure, and visibility. Its itinerary planner loads the supported activities, lets the user select activities and a daily maximum, and renders the server-optimised three-day plan with suitability scores and explanations. It uses Vue's `v-model`, `v-if`/`v-else`, `v-for`, event directives, computed values, watchers, and moustache interpolation directly in `public/index.html`.
 
 Lucide is the dashboard's sole icon system. `public/icons.js` imports only the required official icon-node modules from the pinned `lucide@1.59.0` unpkg release and exposes them through a reactive Vue component. Weather, activity, and packing mappings are centralised in `public/iconMappings.js`, so Vue state changes render the correct inline SVG without a DOM replacement pass or a frontend build step. Icons inherit their colour, use Lucide's standard two-pixel outline, and are decorative beside visible text. Lucide is distributed under the [ISC License](https://lucide.dev/license).
 
@@ -70,7 +71,7 @@ Both travel and itinerary requests use native `fetch`. Independent `AbortControl
 
 ## Travel API
 
-`GET /api/travel?city=<city>` resolves a destination and returns its three-day weather summary, packing recommendations, and air-quality analysis. URL-encode the query when needed:
+`GET /api/travel?city=<city>` resolves a destination and returns its three-day weather data and air-quality analysis. The browser derives packing recommendations and rainfall levels from the forecast intervals and daily summaries. URL-encode the query when needed:
 
 ```text
 GET /api/travel?city=Dublin%2CIE
@@ -78,7 +79,7 @@ GET /api/travel?city=Dublin%2CIE
 
 The city may include a country code or state, such as `Dublin,IE` or `Springfield,Illinois,US`. Geocoding never silently selects the first of several results. An ambiguous query returns HTTP `300` with `error.details.candidates`; the dashboard presents those candidates as keyboard-accessible choices. Selecting one resubmits the city with the candidate's `latitude` and `longitude`, which the backend matches against fresh geocoding results for deterministic resolution. No result returns `404`, invalid input returns `400`, and upstream/configuration failures return a consistent error object with an appropriate `5xx` status.
 
-An abbreviated success response is:
+An abbreviated success response is shown below for a request made on 10 January 2026. The full response covers 11–13 January; for readability, the `days`, `periods`, `intervalsByDate`, and `maxima` arrays show representative records only. `intervalCount` and `readingCount` describe the unabridged response.
 
 ```json
 {
@@ -90,11 +91,11 @@ An abbreviated success response is:
     "longitude": -6.2603
   },
   "forecast": {
-    "interpretation": "Three destination-local calendar days including the current day.",
+    "interpretation": "The next three full destination-local calendar days, excluding the current day.",
     "timezoneOffsetSeconds": 0,
     "days": [
       {
-        "date": "2026-10-17",
+        "date": "2026-01-11",
         "minimumTemperatureCelsius": 8.2,
         "maximumTemperatureCelsius": 13.1,
         "averageWindSpeedKmh": 17.6,
@@ -104,11 +105,10 @@ An abbreviated success response is:
           "description": "light rain",
           "icon": "10d"
         },
-        "intervalCount": 4,
-        "partialCoverage": true,
+        "intervalCount": 8,
         "periods": [
           {
-            "forecastAt": "2026-10-17T12:00:00+00:00",
+            "forecastAt": "2026-01-11T12:00:00+00:00",
             "localTime": "12:00",
             "temperatureCelsius": 11.2,
             "feelsLikeCelsius": 10.1,
@@ -131,10 +131,10 @@ An abbreviated success response is:
       }
     ],
     "intervalsByDate": {
-      "2026-10-17": [
+      "2026-01-11": [
         {
-          "timestamp": 1792238400,
-          "temperature": 11.4,
+          "timestamp": 1768132800,
+          "temperature": 11.2,
           "minimum": 10.8,
           "maximum": 12.1,
           "windSpeedKmh": 14.8,
@@ -148,54 +148,24 @@ An abbreviated success response is:
       ]
     }
   },
-  "packing": {
-    "umbrella": {
-      "recommended": true,
-      "reason": "Rain is forecast during at least one three-hour interval."
-    },
-    "temperature": {
-      "categories": ["Mild"],
-      "mixedConditions": false,
-      "advice": [
-        {
-          "category": "Mild",
-          "message": "Pack light layers that can be adjusted through the day."
-        }
-      ]
-    }
-  },
   "airQuality": {
     "current": {
-      "observedAt": "2026-10-17T12:00:00+00:00",
+      "observedAt": "2026-01-10T12:00:00+00:00",
       "aqi": 2,
       "aqiClassification": "Fair",
       "components": {
         "o3": { "concentration": 75, "unit": "µg/m³" },
         "no": { "concentration": 1.2, "unit": "µg/m³" },
         "nh3": { "concentration": 0.8, "unit": "µg/m³" }
-      },
-      "warnings": [
-        {
-          "pollutant": "o3",
-          "name": "Ozone (O₃)",
-          "concentration": 75,
-          "unit": "µg/m³",
-          "goodBoundary": 60,
-          "severity": "Fair",
-          "amountAboveGoodBoundary": 15,
-          "percentageAboveGoodBoundary": 25,
-          "observedAt": "2026-10-17T12:00:00+00:00",
-          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Unusually sensitive people may notice effects; consider easing prolonged or strenuous outdoor activity if symptoms occur."
-        }
-      ]
+      }
     },
     "forecast": {
-      "period": { "startDate": "2026-10-17", "endDate": "2026-10-19" },
-      "readingCount": 60,
+      "period": { "startDate": "2026-01-11", "endDate": "2026-01-13" },
+      "readingCount": 71,
       "coverage": {
         "complete": false,
-        "firstReadingAt": "2026-10-17T13:00:00+00:00",
-        "lastReadingAt": "2026-10-19T23:00:00+00:00"
+        "firstReadingAt": "2026-01-11T01:00:00+00:00",
+        "lastReadingAt": "2026-01-13T23:00:00+00:00"
       },
       "maxima": [
         {
@@ -203,62 +173,13 @@ An abbreviated success response is:
           "name": "Ozone (O₃)",
           "concentration": 145,
           "unit": "µg/m³",
-          "goodThreshold": 60,
-          "classification": "Poor",
-          "expectedAt": "2026-10-18T16:00:00+01:00"
-        }
-      ],
-      "warnings": [
-        {
-          "pollutant": "o3",
-          "name": "Ozone (O₃)",
-          "concentration": 145,
-          "unit": "µg/m³",
-          "goodBoundary": 60,
-          "severity": "Poor",
-          "amountAboveGoodBoundary": 85,
-          "percentageAboveGoodBoundary": 141.7,
-          "expectedAt": "2026-10-18T16:00:00+01:00",
-          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Health effects are more likely, especially for sensitive groups; reduce prolonged or strenuous outdoor activity and follow local advice."
+          "expectedAt": "2026-01-12T16:00:00+00:00"
         }
       ]
-    },
-    "warnings": [
-      {
-        "pollutant": "o3",
-        "name": "Ozone (O₃)",
-        "unit": "µg/m³",
-        "goodBoundary": 60,
-        "peakSeverity": "Poor",
-        "current": {
-          "pollutant": "o3",
-          "name": "Ozone (O₃)",
-          "concentration": 75,
-          "unit": "µg/m³",
-          "goodBoundary": 60,
-          "severity": "Fair",
-          "amountAboveGoodBoundary": 15,
-          "percentageAboveGoodBoundary": 25,
-          "observedAt": "2026-10-17T12:00:00+00:00",
-          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Unusually sensitive people may notice effects; consider easing prolonged or strenuous outdoor activity if symptoms occur."
-        },
-        "forecast": {
-          "pollutant": "o3",
-          "name": "Ozone (O₃)",
-          "concentration": 145,
-          "unit": "µg/m³",
-          "goodBoundary": 60,
-          "severity": "Poor",
-          "amountAboveGoodBoundary": 85,
-          "percentageAboveGoodBoundary": 141.7,
-          "expectedAt": "2026-10-18T16:00:00+01:00",
-          "healthRisk": "Ground-level ozone can cause coughing or breathing discomfort and can aggravate asthma. Health effects are more likely, especially for sensitive groups; reduce prolonged or strenuous outdoor activity and follow local advice."
-        }
-      }
-    ]
+    }
   },
   "limitations": [
-    "One or more days contain fewer than eight three-hour forecast intervals and are marked as partial."
+    "The hourly air-pollution forecast does not cover every hour of the three local calendar days; maxima use the available hours only."
   ]
 }
 ```
@@ -339,7 +260,7 @@ When resolving a candidate returned by an `AMBIGUOUS_CITY` response, include its
 }
 ```
 
-An abbreviated success response is:
+An abbreviated success response is shown below for a request made on 10 January 2026. The full itinerary contains day records for 11, 12 and 13 January; only the first is shown here.
 
 ```json
 {
@@ -354,15 +275,15 @@ An abbreviated success response is:
     "activitiesPerDay": 2
   },
   "forecast": {
-    "interpretation": "Three destination-local calendar days including the current day.",
-    "timezoneOffsetSeconds": 7200
+    "interpretation": "The next three full destination-local calendar days, excluding the current day.",
+    "timezoneOffsetSeconds": 3600
   },
   "itinerary": {
     "days": [
       {
-        "date": "2026-10-17",
+        "date": "2026-01-11",
         "forecast": {
-          "date": "2026-10-17",
+          "date": "2026-01-11",
           "minimumTemperatureCelsius": 20.2,
           "maximumTemperatureCelsius": 26.1,
           "averageWindSpeedKmh": 12.4,
@@ -372,8 +293,7 @@ An abbreviated success response is:
             "description": "clear sky",
             "icon": "01d"
           },
-          "intervalCount": 4,
-          "partialCoverage": true
+          "intervalCount": 8
         },
         "activities": [
           {
@@ -382,7 +302,7 @@ An abbreviated success response is:
             "description": "Spend time relaxing at the beach.",
             "environment": "outdoor",
             "suitabilityScore": 90,
-            "reason": "This is its highest-scoring forecast day. 20.2–26.1°C temperatures are within its preferred 20–30°C range; no rain appears in the available intervals; and winds peak at 15.1 km/h. Incomplete forecast coverage reduced the score."
+            "reason": "This is its highest-scoring forecast day. 20.2–26.1°C temperatures are within its preferred 20–30°C range; no rain appears in the available intervals; and winds peak at 15.1 km/h."
           }
         ]
       }
@@ -390,7 +310,6 @@ An abbreviated success response is:
     "overallScore": 86
   },
   "limitations": [
-    "One or more days contain fewer than eight three-hour forecast intervals and are marked as partial.",
     "Suitability scores are application-defined weather heuristics, not safety guarantees.",
     "Activities are assigned to whole days; the itinerary does not choose an hour or a venue."
   ]
@@ -404,7 +323,7 @@ The score for each activity/day pair starts at 100 and is clamped to 0–100 aft
 - Wind: the mean amount by which intervals exceed the activity's wind limit, plus a penalty based on the fraction of over-limit intervals.
 - Coverage: each missing interval from the expected eight reduces the score. Outdoor activities receive a larger reduction, so missing data is not treated as favourable weather.
 
-These weights are deliberately stronger for beach, hiking, and outdoor dining and much lighter for museums and shopping. They are application heuristics rather than scientifically validated safety guidance. The response explains the actual temperature range, interval rainfall, peak wind, partial coverage, and whether capacity caused placement on a day other than the activity's best-scoring day.
+These weights are deliberately stronger for beach, hiking, and outdoor dining and much lighter for museums and shopping. They are application heuristics rather than scientifically validated safety guidance. The response explains the actual temperature range, interval rainfall, peak wind, any incomplete upstream coverage, and whether capacity caused placement on a day other than the activity's best-scoring day.
 
 The scheduler evaluates every assignment of the selected activities to the three days, rejects assignments that exceed `activitiesPerDay`, and chooses the assignment with the greatest sum of suitability scores. Each selected activity is scheduled exactly once. Activities are sorted by identifier and equal-score assignments prefer the lexicographically earliest day-index sequence, making ties deterministic. For `A` activities the search is `O(3^A × A)` with small constant memory; the fixed catalogue limits `A` to six, so at most 729 complete assignments exist before capacity pruning. This bounded exhaustive search is simpler and more auditable than an optimisation dependency.
 
@@ -463,17 +382,17 @@ Known limitations: recommendations use a destination-centre radius rather than n
 
 ## Processing decisions
 
-The three-day period means the current destination-local calendar day plus the following two calendar days. Dates are calculated with the UTC offset in the forecast response, not the server timezone. Each day uses all valid three-hour intervals in that local date: temperature minima/maxima are extrema, wind is averaged and converted from m/s to km/h, and `rain["3h"]` is summed in millimetres. A missing rain field means zero; a malformed interval is excluded and disclosed. A day with fewer than the expected eight intervals is marked `partialCoverage`. If any of the three dates has no usable interval, the request fails rather than presenting a misleading summary.
+The three-day period means tomorrow and the following two calendar days in the destination's local time; the current day is always excluded. Dates are calculated with the UTC offset in the forecast response, not the browser or server timezone, so each selected date spans local 00:00 through 23:59. Each day uses all valid three-hour intervals in that local date: temperature minima/maxima are extrema, wind is averaged and converted from m/s to km/h, and `rain["3h"]` is summed in millimetres. A missing rain field means zero; a malformed interval is excluded and disclosed. Fewer than the expected eight intervals is disclosed as an upstream data limitation, and a date with no usable interval causes the request to fail rather than presenting a misleading summary.
 
-The representative condition is the most frequent condition among the day's intervals, with the earliest occurrence breaking a tie. Umbrella advice checks every selected interval and is enabled for any rainfall. Temperatures are classified across every interval using the assignment boundaries: Cold below 8°C, Mild from 8°C through 24°C inclusive, and Hot above 24°C. More than one observed class produces mixed-condition advice.
+The representative condition is the most frequent condition among the day's intervals, with the earliest occurrence breaking a tie. In the browser, umbrella advice checks every selected interval and is enabled for any rainfall. Temperatures are classified across every interval using the assignment boundaries: Cold below 8°C, Mild from 8°C through 24°C inclusive, and Hot above 24°C. More than one observed class produces mixed-condition advice. Daily rainfall totals are classified as None, Light, Moderate, or Heavy for the visible three-day summary.
 
-Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Forecast analysis uses only timestamps within the same three local dates and reports the maximum expected concentration and time for each classified pollutant. [OpenWeather's documented half-open component bands](https://openweathermap.org/api/air-pollution) are centralized in `server/services/airQuality.js`: SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO are Good only below 20, 40, 20, 10, 60, and 4400 µg/m³ respectively; a value exactly at a boundary enters the next category. NO and NH₃ remain measurements only because OpenWeather explicitly lists them as parameters that do not affect its AQI calculation.
+Air pollution is requested from both the current and hourly forecast endpoints. Current readings are reported separately. Server processing uses only timestamps within the same three local dates and reports the raw maximum expected concentration and time for SO₂, NO₂, PM₁₀, PM₂.₅, O₃, and CO. NO and NH₃ remain current measurements only because OpenWeather explicitly lists them as parameters that do not affect its AQI calculation.
 
-`current.warnings` and `forecast.warnings` contain complete source-specific warning records. `airQuality.warnings` combines those records by pollutant for display, retains both periods when both are elevated, and states the highest severity as `peakSeverity`; it does not suppress either concentration or time. Each warning gives the Good boundary, absolute and percentage elevation, severity, observation or expected-peak time, and concise health-risk guidance. Guidance combines a pollutant-specific effect summary with an explicit Fair/Moderate/Poor/Very Poor precaution mapping. The summaries draw on the [WHO overview of health-relevant air pollutants](https://www.who.int/teams/environment-climate-change-and-health/air-quality-energy-and-health/health-impacts) and [US EPA criteria-pollutant health information](https://www.epa.gov/criteria-air-pollutants). They are cautious planning information, not medical advice; users should follow local alerts and professional advice where appropriate.
+The browser applies [OpenWeather's documented half-open component bands](https://openweathermap.org/api/air-pollution) in `public/airQualityWarnings.js`: a value exactly at a boundary enters the next category. It derives forecast classifications and current/forecast warning groups from the raw API measurements, including the Good boundary, absolute and percentage elevation, source-specific time, severity, and cautious health-risk guidance. The summaries draw on the [WHO overview of health-relevant air pollutants](https://www.who.int/teams/environment-climate-change-and-health/air-quality-energy-and-health/health-impacts) and [US EPA criteria-pollutant health information](https://www.epa.gov/criteria-air-pollutants). They are planning information, not medical advice; users should follow local alerts and professional advice where appropriate.
 
-The dashboard intentionally does not add packing or health conclusions beyond the API response. Its forecast and pollution coverage are limited by OpenWeather's available readings; any detected gaps are shown in the data-notes disclosure.
+The dashboard derives the assignment-required packing, rainfall, and pollutant presentation logic from validated raw response data. Its forecast and pollution coverage are limited by OpenWeather's available readings; any detected gaps are shown in the data-notes disclosure.
 
-The air-pollution forecast is hourly and OpenWeather normally supplies four days. Because a request made partway through today cannot cover past hours, `coverage.complete` may be false; maxima then describe only available readings and the limitation is explicit. Times are rendered in destination-local time using the forecast's fixed UTC offset. This API does not attempt daylight-saving transitions that occur within the three-day window because the 5-day forecast provides an offset rather than an IANA timezone.
+The air-pollution forecast is hourly and OpenWeather normally supplies four days. If the upstream response does not cover every hour of the selected three future dates, `coverage.complete` is false; maxima then describe only available readings and the limitation is explicit. Times are rendered in destination-local time using the forecast's fixed UTC offset. This API does not attempt daylight-saving transitions that occur within the three-day window because the 5-day forecast provides an offset rather than an IANA timezone.
 
 ## Tests
 
@@ -483,4 +402,4 @@ Tests use deterministic mocked responses and never require a live API key:
 npm test
 ```
 
-They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, rain and temperature packing rules, every pollutant Good/Fair boundary, all five severities, current-only and forecast-only warnings, combined and multi-pollutant warnings, unclassified NO/NH₃ measurements, the complete travel response, UI response-shape checks, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
+They cover health, geocoding, ambiguity, malformed responses, failure mapping and timeouts, destination-local forecast aggregation, incomplete coverage, client-side rain and temperature packing rules, every pollutant Good/Fair boundary, all five severities, client-generated current-only and forecast-only warnings, combined and multi-pollutant warnings, unclassified NO/NH₃ measurements, raw air-quality response validation, the complete travel response, public activity catalogue, activity scoring, optimal assignment and tie-breaking, itinerary validation, and the complete itinerary response. A known three-activity fixture proves the optimiser beats naive sequential placement.
