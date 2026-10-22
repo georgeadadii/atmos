@@ -62,6 +62,15 @@ function isMaximum(value) {
   );
 }
 
+function isForecastInterval(value) {
+  return Boolean(
+    value &&
+    Number.isFinite(value.temperature) &&
+    nonNegativeNumber(value.rainfall) &&
+    nonNegativeNumber(value.windSpeedKmh),
+  );
+}
+
 export function isTravelResponse(payload) {
   const current = payload?.airQuality?.current;
   const forecastAir = payload?.airQuality?.forecast;
@@ -72,10 +81,16 @@ export function isTravelResponse(payload) {
     Number.isFinite(payload?.destination?.longitude) &&
     Array.isArray(payload?.forecast?.days) && payload.forecast.days.length === 3 &&
     payload?.forecast?.intervalsByDate &&
-    payload.forecast.days.every((day) =>
-      Array.isArray(payload.forecast.intervalsByDate[day.date]) &&
-      Array.isArray(day?.periods)) &&
-    payload?.packing?.umbrella && payload?.packing?.temperature &&
+    typeof payload.forecast.intervalsByDate === "object" &&
+    !Array.isArray(payload.forecast.intervalsByDate) &&
+    new Set(payload.forecast.days.map((day) => day?.date)).size === 3 &&
+    payload.forecast.days.every((day) => {
+      const intervals = payload.forecast.intervalsByDate[day?.date];
+      return nonEmptyString(day?.date) &&
+        Object.hasOwn(payload.forecast.intervalsByDate, day.date) &&
+        Array.isArray(intervals) && intervals.length > 0 &&
+        intervals.every(isForecastInterval) && Array.isArray(day?.periods);
+    }) &&
     nonEmptyString(current?.observedAt) &&
     Number.isInteger(current?.aqi) && current.aqi >= 1 && current.aqi <= 5 &&
     SEVERITIES.includes(current?.aqiClassification) &&

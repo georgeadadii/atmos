@@ -64,11 +64,24 @@ test("GET /api/travel returns the documented structured response", async () => {
       "2026-01-11",
       "2026-01-12",
     ]);
+    assert.deepEqual(body.forecast.days.map(({ date }) => date), [
+      "2026-01-10",
+      "2026-01-11",
+      "2026-01-12",
+    ]);
     assert.equal(body.forecast.intervalsByDate["2026-01-10"].length, 2);
+    assert.deepEqual(
+      {
+        temperature: body.forecast.intervalsByDate["2026-01-10"][1].temperature,
+        rainfall: body.forecast.intervalsByDate["2026-01-10"][1].rainfall,
+        windSpeedKmh: body.forecast.intervalsByDate["2026-01-10"][1].windSpeedKmh,
+      },
+      { temperature: 8, rainfall: 1.2, windSpeedKmh: 14.4 },
+    );
     assert.equal(body.forecast.days[0].periods.length, 2);
     assert.equal(body.forecast.days[0].periods[0].localTime, "12:00");
     assert.equal(body.forecast.days[0].minimumTemperatureCelsius, 6);
-    assert.equal(body.packing.umbrella.recommended, true);
+    assert.equal(body.packing, undefined);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);
     assert.deepEqual(body.airQuality.warnings, []);
@@ -118,6 +131,39 @@ test("GET /api/travel forwards a deterministic destination selection", async () 
     assert.deepEqual(receivedSelection, {
       latitude: 53.35,
       longitude: -6.26,
+    });
+  });
+});
+
+test("GET /api/travel preserves ambiguous destination responses", async () => {
+  const client = successfulClient();
+  const candidates = [
+    {
+      name: "Springfield",
+      state: "Illinois",
+      country: "US",
+      latitude: 39.78,
+      longitude: -89.64,
+    },
+  ];
+  client.geocode = async () => {
+    throw new AppError(
+      "AMBIGUOUS_CITY",
+      "Multiple destinations matched that search.",
+      300,
+      { candidates },
+    );
+  };
+
+  await withServer(client, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/travel?city=Springfield`);
+    assert.equal(response.status, 300);
+    assert.deepEqual(await response.json(), {
+      error: {
+        code: "AMBIGUOUS_CITY",
+        message: "Multiple destinations matched that search.",
+        details: { candidates },
+      },
     });
   });
 });

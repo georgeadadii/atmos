@@ -30,13 +30,20 @@ function responseWithAirQuality() {
   );
   const days = ["2026-01-10", "2026-01-11", "2026-01-12"]
     .map((date) => ({ date, periods: [] }));
+  const intervalsByDate = Object.fromEntries(days.map(({ date }, index) => [
+    date,
+    [{
+      temperature: 12 + index,
+      rainfall: index === 0 ? 1.2 : 0,
+      windSpeedKmh: 10 + index,
+    }],
+  ]));
   return {
     destination: { name: "Dublin", latitude: 53.35, longitude: -6.26 },
     forecast: {
       days,
-      intervalsByDate: Object.fromEntries(days.map(({ date }) => [date, []])),
+      intervalsByDate,
     },
-    packing: { umbrella: { recommended: false }, temperature: { advice: [] } },
     airQuality: {
       current: processed.current,
       forecast: processed.forecast,
@@ -46,11 +53,42 @@ function responseWithAirQuality() {
   };
 }
 
-test("UI response validation accepts the complete air-warning response shape", () => {
+test("UI response validation accepts a complete response without server packing", () => {
   const response = responseWithAirQuality();
   assert.equal(isTravelResponse(response), true);
+  assert.equal(response.packing, undefined);
   assert.ok(response.airQuality.current.components.no);
   assert.ok(response.airQuality.current.components.nh3);
+});
+
+test("UI response validation rejects malformed forecast intervals", async (context) => {
+  for (const [name, field, value] of [
+    ["non-finite temperature", "temperature", Number.NaN],
+    ["non-finite rainfall", "rainfall", Number.POSITIVE_INFINITY],
+    ["negative rainfall", "rainfall", -0.1],
+    ["non-finite wind speed", "windSpeedKmh", Number.NEGATIVE_INFINITY],
+    ["negative wind speed", "windSpeedKmh", -1],
+  ]) {
+    await context.test(name, () => {
+      const response = responseWithAirQuality();
+      response.forecast.intervalsByDate["2026-01-10"][0][field] = value;
+      assert.equal(isTravelResponse(response), false);
+    });
+  }
+
+  await context.test("missing intervals for a requested date", () => {
+    const response = responseWithAirQuality();
+    response.forecast.intervalsByDate["2026-01-10"] = [];
+    assert.equal(isTravelResponse(response), false);
+  });
+
+  await context.test("intervals must be an object keyed by date", () => {
+    const response = responseWithAirQuality();
+    response.forecast.intervalsByDate = Object.values(
+      response.forecast.intervalsByDate,
+    );
+    assert.equal(isTravelResponse(response), false);
+  });
 });
 
 test("UI response validation rejects malformed warning shapes", async (context) => {
