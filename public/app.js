@@ -11,6 +11,12 @@ import {
   weatherIconName,
 } from "./iconMappings.js";
 import { createPackingAdvice, rainfallLevel } from "./packing.js";
+import {
+  AIR_QUALITY_UNIT,
+  buildPollutantWarnings,
+  classifyPollutant,
+  POLLUTANTS,
+} from "./airQualityWarnings.js";
 import { isTravelResponse } from "./travelResponse.js";
 
 let activeTravelController = null;
@@ -94,6 +100,51 @@ createApp({
       ) return null;
 
       return createPackingAdvice(forecast.intervalsByDate, dates);
+    },
+    pollutantDataAvailable() {
+      const current = this.result?.airQuality?.current;
+      const components = current?.components;
+      const maxima = this.result?.airQuality?.forecast?.maxima;
+      const validMeasurement = (measurement) => (
+        Number.isFinite(measurement?.concentration)
+        && measurement.concentration >= 0
+        && measurement.unit === AIR_QUALITY_UNIT
+      );
+
+      return Boolean(
+        typeof current?.observedAt === "string"
+        && current.observedAt.length > 0
+        && components
+        && typeof components === "object"
+        && Object.keys(POLLUTANTS).every((pollutant) => (
+          validMeasurement(components[pollutant])
+        ))
+        && Array.isArray(maxima)
+        && Object.keys(POLLUTANTS).every((pollutant) => (
+          maxima.some((maximum) => (
+            maximum?.pollutant === pollutant
+            && validMeasurement(maximum)
+            && typeof maximum.expectedAt === "string"
+            && maximum.expectedAt.length > 0
+          ))
+        )),
+      );
+    },
+    pollutantWarnings() {
+      if (!this.pollutantDataAvailable) return [];
+      return buildPollutantWarnings(this.result.airQuality);
+    },
+    pollutantMaxima() {
+      const maxima = this.result?.airQuality?.forecast?.maxima;
+      if (!Array.isArray(maxima)) return [];
+
+      return maxima.map((maximum) => ({
+        ...maximum,
+        classification: classifyPollutant(
+          maximum?.pollutant,
+          maximum?.concentration,
+        ),
+      }));
     },
     summaryRows() {
       const days = this.result?.forecast?.days;

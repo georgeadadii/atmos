@@ -84,12 +84,14 @@ test("GET /api/travel returns the documented structured response", async () => {
     assert.equal(body.packing, undefined);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);
-    assert.deepEqual(body.airQuality.warnings, []);
+    assert.equal(body.airQuality.warnings, undefined);
+    assert.equal(body.airQuality.current.warnings, undefined);
+    assert.equal(body.airQuality.forecast.warnings, undefined);
     assert.ok(Array.isArray(body.limitations));
   });
 });
 
-test("GET /api/travel exposes combined current and forecast pollutant warnings", async () => {
+test("GET /api/travel exposes raw current and forecast pollutant values", async () => {
   const client = successfulClient();
   client.getCurrentAirPollution = async () => pollutionPayload([
     pollutionReading("2026-01-10T10:00:00Z", {
@@ -108,10 +110,18 @@ test("GET /api/travel exposes combined current and forecast pollutant warnings",
     const response = await fetch(`${baseUrl}/api/travel?city=Dublin%2CIE`);
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.airQuality.warnings.length, 1);
-    assert.equal(body.airQuality.warnings[0].peakSeverity, "Poor");
-    assert.equal(body.airQuality.warnings[0].current.severity, "Fair");
-    assert.equal(body.airQuality.warnings[0].forecast.severity, "Poor");
+    assert.equal(body.airQuality.current.components.o3.concentration, 75);
+    assert.deepEqual(
+      body.airQuality.forecast.maxima.find(({ pollutant }) => pollutant === "o3"),
+      {
+        pollutant: "o3",
+        name: "Ozone (O₃)",
+        concentration: 145,
+        unit: "µg/m³",
+        expectedAt: "2026-01-11T12:00:00+00:00",
+      },
+    );
+    assert.equal(body.airQuality.warnings, undefined);
   });
 });
 

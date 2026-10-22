@@ -47,7 +47,6 @@ function responseWithAirQuality() {
     airQuality: {
       current: processed.current,
       forecast: processed.forecast,
-      warnings: processed.warnings,
     },
     limitations: [],
   };
@@ -59,6 +58,9 @@ test("UI response validation accepts a complete response without server packing"
   assert.equal(response.packing, undefined);
   assert.ok(response.airQuality.current.components.no);
   assert.ok(response.airQuality.current.components.nh3);
+  assert.equal(response.airQuality.warnings, undefined);
+  assert.equal(response.airQuality.forecast.maxima[0].classification, undefined);
+  assert.equal(response.airQuality.forecast.maxima[0].goodThreshold, undefined);
 });
 
 test("UI response validation rejects malformed forecast intervals", async (context) => {
@@ -91,28 +93,35 @@ test("UI response validation rejects malformed forecast intervals", async (conte
   });
 });
 
-test("UI response validation rejects malformed warning shapes", async (context) => {
-  await context.test("missing combined warning collection", () => {
-    const response = responseWithAirQuality();
-    delete response.airQuality.warnings;
-    assert.equal(isTravelResponse(response), false);
-  });
-
-  await context.test("missing forecast warning timing", () => {
-    const response = responseWithAirQuality();
-    delete response.airQuality.warnings[0].forecast.expectedAt;
-    assert.equal(isTravelResponse(response), false);
-  });
-
-  await context.test("Good is not a warning severity", () => {
-    const response = responseWithAirQuality();
-    response.airQuality.current.warnings[0].severity = "Good";
-    assert.equal(isTravelResponse(response), false);
-  });
-
+test("UI response validation rejects malformed raw air-quality data", async (context) => {
   await context.test("classified component measurements are required", () => {
     const response = responseWithAirQuality();
     delete response.airQuality.current.components.pm2_5;
+    assert.equal(isTravelResponse(response), false);
+  });
+
+  await context.test("current concentrations must be finite", () => {
+    const response = responseWithAirQuality();
+    response.airQuality.current.components.o3.concentration = Number.NaN;
+    assert.equal(isTravelResponse(response), false);
+  });
+
+  await context.test("forecast maximum concentrations must be finite", () => {
+    const response = responseWithAirQuality();
+    response.airQuality.forecast.maxima[0].concentration = Number.POSITIVE_INFINITY;
+    assert.equal(isTravelResponse(response), false);
+  });
+
+  await context.test("forecast maximum timestamps are required", () => {
+    const response = responseWithAirQuality();
+    delete response.airQuality.forecast.maxima[0].expectedAt;
+    assert.equal(isTravelResponse(response), false);
+  });
+
+  await context.test("all six unique forecast maxima are required", () => {
+    const response = responseWithAirQuality();
+    response.airQuality.forecast.maxima[0].pollutant =
+      response.airQuality.forecast.maxima[1].pollutant;
     assert.equal(isTravelResponse(response), false);
   });
 });
