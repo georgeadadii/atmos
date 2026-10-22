@@ -10,6 +10,7 @@ import {
   packingIconName,
   weatherIconName,
 } from "./iconMappings.js";
+import { createPackingAdvice, rainfallLevel } from "./packing.js";
 import { isTravelResponse } from "./travelResponse.js";
 
 let activeTravelController = null;
@@ -77,6 +78,37 @@ createApp({
     };
   },
   computed: {
+    packing() {
+      const forecast = this.result?.forecast;
+      if (
+        !Array.isArray(forecast?.days) ||
+        forecast.days.length !== 3 ||
+        !forecast.intervalsByDate ||
+        typeof forecast.intervalsByDate !== "object"
+      ) return null;
+
+      const dates = forecast.days.map((day) => day?.date);
+      if (
+        dates.some((date) => typeof date !== "string") ||
+        dates.some((date) => !Array.isArray(forecast.intervalsByDate[date]))
+      ) return null;
+
+      return createPackingAdvice(forecast.intervalsByDate, dates);
+    },
+    summaryRows() {
+      const days = this.result?.forecast?.days;
+      if (!Array.isArray(days) || days.length !== 3) return [];
+
+      return days.map((day) => ({
+        date: day.date,
+        minimumTemperatureCelsius: day.minimumTemperatureCelsius,
+        maximumTemperatureCelsius: day.maximumTemperatureCelsius,
+        averageWindSpeedKmh: day.averageWindSpeedKmh,
+        totalRainfallMm: day.totalRainfallMm,
+        partialCoverage: day.partialCoverage,
+        rainfallLevel: rainfallLevel(day.totalRainfallMm),
+      }));
+    },
     forecastPeriod() {
       const days = this.result?.forecast?.days ?? [];
       if (!days.length) return "Not available";

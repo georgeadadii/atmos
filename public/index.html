@@ -49,6 +49,20 @@
                 <span v-if="day.partialCoverage" class="chip partial-chip"><atmos-icon name="info" :size="13"></atmos-icon>Partial forecast</span>
               </button>
             </div>
+            <div class="summary-table-wrap">
+              <table class="summary-table">
+                <caption>Three-day weather summary</caption>
+                <thead><tr><th scope="col">Date</th><th scope="col">Temperature</th><th scope="col">Wind speed</th><th scope="col">Rainfall level</th></tr></thead>
+                <tbody>
+                  <tr v-for="row in summaryRows" :key="row.date">
+                    <th scope="row"><span class="summary-date"><strong>{{ formatDay(row.date) }}</strong><small>{{ formatShortDate(row.date) }}</small><span v-if="row.partialCoverage" class="chip partial-chip summary-partial-chip"><atmos-icon name="info" :size="13"></atmos-icon>Partial forecast</span></span></th>
+                    <td>{{ formatNumber(row.minimumTemperatureCelsius) }}–{{ formatNumber(row.maximumTemperatureCelsius) }}°C</td>
+                    <td>{{ formatNumber(row.averageWindSpeedKmh) }} km/h</td>
+                    <td><span class="summary-rainfall"><strong>{{ row.rainfallLevel.label }}</strong> ({{ formatNumber(row.totalRainfallMm) }} mm)</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div v-for="day in result.forecast.days" v-show="expandedForecastDate === day.date" :key="`detail-${day.date}`" :id="`forecast-detail-${day.date}`" class="forecast-detail">
               <div class="detail-heading"><div><p class="eyebrow">Three-hour detail</p><h3>{{ formatDay(day.date) }}, {{ formatCompactDate(day.date) }}</h3><p>{{ day.intervalCount }} three-hour intervals available<span v-if="day.partialCoverage">, so this is a partial day</span>.</p></div><div class="metric-tabs" role="group" aria-label="Chart metric"><label v-for="metric in forecastMetrics" :key="metric.id" :class="{ selected: selectedForecastMetric === metric.id }"><input v-model="selectedForecastMetric" type="radio" name="forecast-metric" :value="metric.id" @change="resetChartPointSelection"><span>{{ metric.label }}</span></label></div></div>
               <dl class="summary-tiles"><div><dt>Temperature</dt><dd>{{ formatNumber(day.minimumTemperatureCelsius) }}–{{ formatNumber(day.maximumTemperatureCelsius) }}°C</dd></div><div><dt>Average wind</dt><dd>{{ formatNumber(day.averageWindSpeedKmh) }} km/h</dd></div><div><dt>Total rainfall</dt><dd>{{ formatNumber(day.totalRainfallMm) }} mm</dd></div><div><dt>Coverage</dt><dd>{{ day.intervalCount }} × 3 hr</dd></div></dl>
@@ -62,9 +76,11 @@
 
           <section class="panel packing-panel" aria-labelledby="packing-title">
             <div class="section-heading compact"><div><p class="eyebrow">Ready for the day</p><h2 id="packing-title">Pack for it</h2></div><span class="icon-well"><atmos-icon name="backpack" :size="24"></atmos-icon></span></div>
-            <div class="temperature-badges"><span v-for="category in result.packing.temperature.categories" :key="category" class="chip temperature-chip"><atmos-icon name="thermometer" :size="15"></atmos-icon>{{ category }}</span></div>
-            <p v-if="result.packing.temperature.mixedConditions" class="mixed-note"><atmos-icon name="info" :size="16"></atmos-icon>Temperatures cross more than one packing range, so bring flexible layers.</p>
-            <div class="packing-list"><article class="packing-item" tabindex="0"><span class="icon-well"><atmos-icon :name="result.packing.umbrella.recommended ? 'umbrella' : 'umbrella-off'" :size="22"></atmos-icon></span><div><strong>{{ result.packing.umbrella.recommended ? 'Pack an umbrella' : 'Leave the umbrella' }}</strong><p>{{ result.packing.umbrella.reason }}</p></div></article><article v-for="item in result.packing.temperature.advice" :key="item.category" class="packing-item" tabindex="0"><span class="icon-well"><atmos-icon :name="packingIcon(item.category)" :size="22"></atmos-icon></span><div><strong>{{ item.category }}-weather layers</strong><p>{{ item.message }}</p></div></article></div>
+            <template v-if="packing">
+              <div class="temperature-badges"><span v-for="category in packing.temperature.categories" :key="category" class="chip temperature-chip"><atmos-icon name="thermometer" :size="15"></atmos-icon>{{ category }}</span></div>
+              <p v-if="packing.temperature.mixedConditions" class="mixed-note"><atmos-icon name="info" :size="16"></atmos-icon>Temperatures cross more than one packing range, so bring flexible layers.</p>
+              <div class="packing-list"><article class="packing-item" tabindex="0"><span class="icon-well"><atmos-icon :name="packing.umbrella.recommended ? 'umbrella' : 'umbrella-off'" :size="22"></atmos-icon></span><div><strong>{{ packing.umbrella.recommended ? 'Pack an umbrella' : 'Leave the umbrella' }}</strong><p>{{ packing.umbrella.reason }}</p></div></article><article v-for="item in packing.temperature.advice" :key="item.category" class="packing-item" tabindex="0"><span class="icon-well"><atmos-icon :name="packingIcon(item.category)" :size="22"></atmos-icon></span><div><strong>{{ item.category }}-weather layers</strong><p>{{ item.message }}</p></div></article></div>
+            </template>
           </section>
 
           <section class="panel air-panel air-summary-panel" aria-labelledby="air-title">
