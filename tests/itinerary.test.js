@@ -29,18 +29,18 @@ function itineraryForecast() {
     city: { timezone: 0 },
     list: [
       ...dayIntervals(
-        "2026-01-10",
+        "2026-01-11",
         { temperature: 16, windSpeed: 3 },
         [12, 15, 18, 21],
       ),
-      ...dayIntervals("2026-01-11", {
+      ...dayIntervals("2026-01-12", {
         temperature: 12,
         windSpeed: 4,
         rain: 2,
         condition: "Rain",
         description: "moderate rain",
       }),
-      ...dayIntervals("2026-01-12", {
+      ...dayIntervals("2026-01-13", {
         temperature: 25,
         windSpeed: 2,
         condition: "Clear",
@@ -154,6 +154,11 @@ test("POST /api/itinerary returns the optimal structured three-day itinerary", a
       activitiesPerDay: 1,
     });
     assert.equal(body.itinerary.days.length, 3);
+    assert.deepEqual(body.itinerary.days.map(({ date }) => date), [
+      "2026-01-11",
+      "2026-01-12",
+      "2026-01-13",
+    ]);
     assert.equal(body.itinerary.days[0].forecast.periods, undefined);
     assert.equal(body.itinerary.days[0].activities[0].id, "hiking");
     assert.equal(body.itinerary.days[1].activities[0].id, "museums");

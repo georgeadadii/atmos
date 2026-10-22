@@ -90,7 +90,7 @@ export function scoreActivityForDay(activity, intervals) {
       averageWindSpeedKmh: round(average(windSpeeds)),
       maximumWindSpeedKmh: round(Math.max(...windSpeeds)),
       intervalCount: intervals.length,
-      partialCoverage: missingIntervalCount > 0,
+      incompleteCoverage: missingIntervalCount > 0,
     },
   };
 }
@@ -129,7 +129,7 @@ export function explainActivityPlacement(
   const placementText = isBestDay
     ? "This is its highest-scoring forecast day."
     : `The optimiser placed it here to maximise the itinerary total while respecting the ${activitiesPerDay}-per-day capacity.`;
-  const coverageText = conditions.partialCoverage
+  const coverageText = conditions.incompleteCoverage
     ? " Incomplete forecast coverage reduced the score."
     : "";
 

@@ -62,18 +62,18 @@ test("museums remain relatively suitable in poor weather", () => {
   assert.ok(museum.score > beach.score);
 });
 
-test("scores clamp to zero and partial coverage is not treated as favourable", () => {
+test("scores clamp to zero and incomplete upstream coverage is not treated as favourable", () => {
   const activity = getActivity("hiking");
   const extreme = scoreActivityForDay(
     activity,
     intervals({ temperature: 45, rainfall: 20, windSpeedKmh: 120 }),
   );
   const complete = scoreActivityForDay(activity, intervals({ count: 8 }));
-  const partial = scoreActivityForDay(activity, intervals({ count: 3 }));
+  const incomplete = scoreActivityForDay(activity, intervals({ count: 3 }));
 
   assert.equal(extreme.score, 0);
-  assert.ok(partial.score < complete.score);
-  assert.ok(partial.penalties.incompleteCoverage > 0);
+  assert.ok(incomplete.score < complete.score);
+  assert.ok(incomplete.penalties.incompleteCoverage > 0);
 });
 
 test("the catalogue has unique identifiers and complete weather preferences", () => {

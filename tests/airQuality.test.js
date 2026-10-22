@@ -117,6 +117,27 @@ test("air-quality processing only uses forecast readings inside the selected loc
   assert.equal(result.limitations.length, 1);
 });
 
+test("air-quality boundaries use destination-local midnights and exclude the current day", () => {
+  const result = processAirQuality(
+    goodCurrent(),
+    pollutionPayload([
+      pollutionReading("2026-01-10T21:59:00Z", { ...goodComponents, o3: 200 }),
+      pollutionReading("2026-01-10T22:00:00Z", { ...goodComponents, o3: 80 }),
+      pollutionReading("2026-01-13T21:59:00Z", { ...goodComponents, o3: 90 }),
+      pollutionReading("2026-01-13T22:00:00Z", { ...goodComponents, o3: 210 }),
+    ]),
+    {
+      dates: ["2026-01-11", "2026-01-12", "2026-01-13"],
+      timezoneOffsetSeconds: 7_200,
+    },
+  );
+  const ozone = result.forecast.maxima.find(({ pollutant }) => pollutant === "o3");
+
+  assert.equal(result.forecast.readingCount, 2);
+  assert.equal(ozone.concentration, 90);
+  assert.equal(ozone.expectedAt, "2026-01-13T23:59:00+02:00");
+});
+
 test("complete forecast coverage is preserved as aggregation metadata", () => {
   const result = processAirQuality(
     goodCurrent(),

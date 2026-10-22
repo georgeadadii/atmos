@@ -132,7 +132,6 @@ test("daily overview derives concise statistics from available periods", () => {
     minimumTemperatureCelsius: 4,
     maximumTemperatureCelsius: 13,
     totalRainfallMm: 2.6,
-    partialCoverage: true,
     periods: [
       period("06:00", {
         precipitationProbabilityPercent: 20,
@@ -162,7 +161,7 @@ test("daily overview derives concise statistics from available periods", () => {
 });
 
 test("daily overview reports unavailable optional summaries honestly", () => {
-  const overview = createDailyOverview({ periods: [], partialCoverage: true });
+  const overview = createDailyOverview({ periods: [] });
   assert.ok(overview.every((item) => item.value === null));
 });
 

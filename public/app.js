@@ -156,7 +156,6 @@ createApp({
         maximumTemperatureCelsius: day.maximumTemperatureCelsius,
         averageWindSpeedKmh: day.averageWindSpeedKmh,
         totalRainfallMm: day.totalRainfallMm,
-        partialCoverage: day.partialCoverage,
         rainfallLevel: rainfallLevel(day.totalRainfallMm),
       }));
     },

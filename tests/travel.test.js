@@ -33,7 +33,8 @@ function successfulClient() {
     async getAirPollutionForecast() {
       return pollutionPayload([
         pollutionReading("2026-01-10T11:00:00Z", goodComponents),
-        pollutionReading("2026-01-12T23:00:00Z", goodComponents),
+        pollutionReading("2026-01-11T00:00:00Z", goodComponents),
+        pollutionReading("2026-01-13T23:00:00Z", goodComponents),
       ]);
     },
   };
@@ -60,27 +61,30 @@ test("GET /api/travel returns the documented structured response", async () => {
     assert.deepEqual(body.destination, destination);
     assert.equal(body.forecast.days.length, 3);
     assert.deepEqual(Object.keys(body.forecast.intervalsByDate), [
-      "2026-01-10",
       "2026-01-11",
       "2026-01-12",
+      "2026-01-13",
     ]);
     assert.deepEqual(body.forecast.days.map(({ date }) => date), [
-      "2026-01-10",
       "2026-01-11",
       "2026-01-12",
+      "2026-01-13",
     ]);
-    assert.equal(body.forecast.intervalsByDate["2026-01-10"].length, 2);
+    assert.equal(body.forecast.intervalsByDate["2026-01-10"], undefined);
+    assert.equal(body.forecast.intervalsByDate["2026-01-11"].length, 2);
     assert.deepEqual(
       {
-        temperature: body.forecast.intervalsByDate["2026-01-10"][1].temperature,
-        rainfall: body.forecast.intervalsByDate["2026-01-10"][1].rainfall,
-        windSpeedKmh: body.forecast.intervalsByDate["2026-01-10"][1].windSpeedKmh,
+        temperature: body.forecast.intervalsByDate["2026-01-11"][1].temperature,
+        rainfall: body.forecast.intervalsByDate["2026-01-11"][1].rainfall,
+        windSpeedKmh: body.forecast.intervalsByDate["2026-01-11"][1].windSpeedKmh,
       },
       { temperature: 8, rainfall: 1.2, windSpeedKmh: 14.4 },
     );
     assert.equal(body.forecast.days[0].periods.length, 2);
     assert.equal(body.forecast.days[0].periods[0].localTime, "12:00");
     assert.equal(body.forecast.days[0].minimumTemperatureCelsius, 6);
+    assert.equal(body.airQuality.forecast.period.startDate, "2026-01-11");
+    assert.equal(body.airQuality.forecast.period.endDate, "2026-01-13");
     assert.equal(body.packing, undefined);
     assert.ok(body.airQuality.current);
     assert.ok(body.airQuality.forecast.maxima);

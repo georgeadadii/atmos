@@ -108,7 +108,7 @@ export function processForecast(payload, { now = Date.now() } = {}) {
   }
 
   const today = localDate(Math.floor(now / 1000), timezoneOffsetSeconds);
-  const dates = [today, addLocalDays(today, 1), addLocalDays(today, 2)];
+  const dates = [1, 2, 3].map((days) => addLocalDays(today, days));
   const dateSet = new Set(dates);
   const grouped = new Map(dates.map((date) => [date, []]));
   let ignoredMalformedIntervals = 0;
@@ -160,7 +160,6 @@ export function processForecast(payload, { now = Date.now() } = {}) {
       ),
       representativeCondition: representativeCondition(intervals),
       intervalCount: intervals.length,
-      partialCoverage: intervals.length < 8,
       periods: intervals.map((interval) => ({
         forecastAt: interval.forecastAt,
         localTime: interval.localTime,
@@ -186,9 +185,9 @@ export function processForecast(payload, { now = Date.now() } = {}) {
   );
   const intervals = dates.flatMap((date) => intervalsByDate[date]);
   const warnings = [];
-  if (days.some((day) => day.partialCoverage)) {
+  if (days.some((day) => day.intervalCount < 8)) {
     warnings.push(
-      "One or more days contain fewer than eight three-hour forecast intervals and are marked as partial.",
+      "One or more days contain fewer than eight three-hour forecast intervals; summaries use the available intervals only.",
     );
   }
   if (ignoredMalformedIntervals > 0) {

@@ -55,12 +55,21 @@ export function forecastPayload(overrides = {}) {
     city: { timezone: TIMEZONE_OFFSET },
     list: [
       weatherInterval("2026-01-10T12:00:00Z", {
+        temperature: 99,
+        minimum: 99,
+        maximum: 99,
+        windSpeed: 20,
+        rain: 50,
+        condition: "Rain",
+        description: "current-day rain",
+      }),
+      weatherInterval("2026-01-11T12:00:00Z", {
         temperature: 7,
         minimum: 6,
         maximum: 8,
         windSpeed: 2,
       }),
-      weatherInterval("2026-01-10T15:00:00Z", {
+      weatherInterval("2026-01-11T15:00:00Z", {
         temperature: 8,
         minimum: 7,
         maximum: 9,
@@ -69,12 +78,12 @@ export function forecastPayload(overrides = {}) {
         condition: "Rain",
         description: "light rain",
       }),
-      weatherInterval("2026-01-11T00:00:00Z", {
+      weatherInterval("2026-01-12T00:00:00Z", {
         temperature: 24,
         minimum: 10,
         maximum: 24,
       }),
-      weatherInterval("2026-01-12T00:00:00Z", {
+      weatherInterval("2026-01-13T00:00:00Z", {
         temperature: 24.1,
         minimum: 20,
         maximum: 25,

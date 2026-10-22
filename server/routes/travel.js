@@ -35,7 +35,7 @@ export function createTravelRouter({ openWeatherClient, now = Date.now }) {
         destination,
         forecast: {
           interpretation:
-            "Three destination-local calendar days including the current day.",
+            "The next three full destination-local calendar days, excluding the current day.",
           timezoneOffsetSeconds: weather.timezoneOffsetSeconds,
           days: weather.days,
           intervalsByDate: weather.intervalsByDate,
